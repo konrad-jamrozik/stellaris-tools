@@ -112,11 +112,12 @@ pop_jobs={
   1={ type="farmer" planet=10 workforce=80 max_workforce=100 bonus_workforce=10 workforce_limit=100 }
   2={ type="researcher" planet=10 workforce=20 max_workforce=30 bonus_workforce=1 workforce_limit=30 }
   3={ type="bureaucrat" planet=10 workforce=10 max_workforce=10 bonus_workforce=1 workforce_limit=10 }
-  4={ type="civilian" planet=10 workforce=-1 max_workforce=-1 bonus_workforce=1 workforce_limit=-1 }
+  4={ type="civilian" planet=10 workforce=29 max_workforce=-1 bonus_workforce=1 workforce_limit=-1 pop_groups={ { pop_group=1003 amount=30 } } }
   5={ type="miner" planet=11 workforce=15 max_workforce=20 bonus_workforce=1 workforce_limit=20 }
   6={ type="entertainer" planet=11 workforce=5 max_workforce=12 bonus_workforce=1 workforce_limit=12 }
   7={ type="farmer" planet=50 workforce=10 max_workforce=15 bonus_workforce=1 workforce_limit=15 }
   8={ type="politician" planet=10 workforce=2 max_workforce=5 bonus_workforce=1 workforce_limit=5 }
+  9={ type="worker_unemployment" planet=10 workforce=19 max_workforce=-1 bonus_workforce=1 workforce_limit=-1 pop_groups={ { pop_group=1004 amount=20 } } }
 }
 `;
 

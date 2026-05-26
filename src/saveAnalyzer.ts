@@ -97,6 +97,7 @@ export function analyzeGamestate(gamestate: string, saveFile: string): SaveAnaly
   const planetToSector = buildPlanetToSectorMap(root);
   const sectorsContainer = getObject(root, "sectors");
   const popsByPlanet = aggregatePopsByPlanet(root);
+  const popJobOccupancyByPlanet = aggregatePopJobOccupancyByPlanet(root);
   const jobsByPlanet = aggregateJobsByPlanet(root);
   const planetEntries = collectPlanetEntries(root);
 
@@ -122,6 +123,7 @@ export function analyzeGamestate(gamestate: string, saveFile: string): SaveAnaly
 
     const jobs = jobsByPlanet.get(planetId);
     const pops = popsByPlanet.get(planetId);
+    const popJobOccupancy = popJobOccupancyByPlanet.get(planetId);
     const planetClass = getString(planet, "planet_class") ?? "";
 
     rows.push({
@@ -130,8 +132,8 @@ export function analyzeGamestate(gamestate: string, saveFile: string): SaveAnaly
       planet_size: numberFromField(planet, "planet_size"),
       planet_type: humanizePlanetClass(planetClass),
       total_population: planetPopulation(planet),
-      jobless: pops?.jobless ?? 0,
-      civilians: pops?.civilians ?? 0,
+      jobless: popJobOccupancy?.jobless ?? 0,
+      civilians: popJobOccupancy?.civilians ?? 0,
       citizens: pops?.citizens ?? 0,
       slaves: pops?.slaves ?? 0,
       robots: pops?.robots ?? 0,
@@ -299,8 +301,6 @@ function buildPlanetToSectorMap(root: PdxObject): Map<string, string> {
 }
 
 interface PopCounts {
-  jobless: number;
-  civilians: number;
   citizens: number;
   slaves: number;
   robots: number;
@@ -340,14 +340,6 @@ function aggregatePopsByPlanet(root: PdxObject): Map<string, PopCounts> {
     const isRobot = isMechanicalPop(category, speciesId, mechanicalSpecies);
     const counts = result.get(planetId) ?? emptyPopCounts();
 
-    if (isJoblessPopCategory(category)) {
-      counts.jobless += size;
-    }
-
-    if (category === "civilian") {
-      counts.civilians += size;
-    }
-
     if (category === "slave") {
       counts.slaves += size;
     }
@@ -366,12 +358,78 @@ function aggregatePopsByPlanet(root: PdxObject): Map<string, PopCounts> {
 
 function emptyPopCounts(): PopCounts {
   return {
-    jobless: 0,
-    civilians: 0,
     citizens: 0,
     slaves: 0,
     robots: 0,
   };
+}
+
+interface PopJobOccupancyCounts {
+  jobless: number;
+  civilians: number;
+}
+
+function aggregatePopJobOccupancyByPlanet(root: PdxObject): Map<string, PopJobOccupancyCounts> {
+  const result = new Map<string, PopJobOccupancyCounts>();
+  const popJobs = getObject(root, "pop_jobs");
+
+  if (!popJobs) {
+    return result;
+  }
+
+  for (const assignment of popJobs.assignments) {
+    if (!isPdxObject(assignment.value)) {
+      continue;
+    }
+
+    const job = assignment.value;
+    const planetId = getString(job, "planet");
+
+    if (!planetId) {
+      continue;
+    }
+
+    const type = getString(job, "type") ?? "";
+
+    if (type !== "civilian" && !isJoblessPopCategory(type)) {
+      continue;
+    }
+
+    const amount = occupiedPopAmount(job);
+
+    if (amount <= 0) {
+      continue;
+    }
+
+    const counts = result.get(planetId) ?? { jobless: 0, civilians: 0 };
+
+    if (type === "civilian") {
+      counts.civilians += amount;
+    } else {
+      counts.jobless += amount;
+    }
+
+    result.set(planetId, counts);
+  }
+
+  return result;
+}
+
+function occupiedPopAmount(job: PdxObject): number {
+  const popGroups = getObject(job, "pop_groups");
+  let amount = 0;
+
+  for (const value of popGroups?.values ?? []) {
+    if (isPdxObject(value)) {
+      amount += numberFromField(value, "amount");
+    }
+  }
+
+  if (amount > 0) {
+    return amount;
+  }
+
+  return Math.max(0, Math.round(numberFromField(job, "workforce")));
 }
 
 interface JobCounts {

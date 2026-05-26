@@ -48,8 +48,8 @@ Each row is a planet owned by the player's empire. The capital is sorted first, 
 | `planet_size` | Planet size in tiles |
 | `planet_type` | Planet class without the `pc_` prefix, capitalized (e.g. `Continental`, `Gaia`) |
 | `total_population` | Number of sapient pops on the planet |
-| `jobless` | Pops in unemployment categories |
-| `civilians` | Pops in the civilian category |
+| `jobless` | Pops assigned to unemployment jobs |
+| `civilians` | Pops assigned to the civilian job |
 | `citizens` | Non-mechanical, non-slave pops in citizen categories |
 | `slaves` | Pops in the slave category |
 | `robots` | Mechanical pops, based on robot categories or mechanical species |
