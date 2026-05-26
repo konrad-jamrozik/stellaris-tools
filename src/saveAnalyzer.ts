@@ -24,9 +24,20 @@ export interface PlanetRow {
   citizens: number;
   slaves: number;
   robots: number;
+  rulers: number;
+  specialists: number;
+  workers: number;
+  citizen_workers: number;
+  mitron_workers: number;
+  kelsiote_workers: number;
+  robot_workers: number;
   stability: number;
   crime: number;
   amenities: number;
+  consumer_good_jobs: number;
+  free_consumer_goods_jobs: number;
+  alloy_jobs: number;
+  free_alloy_jobs: number;
   free_ruler_jobs: number;
   free_specialist_jobs: number;
   free_worker_jobs: number;
@@ -52,9 +63,20 @@ export const CSV_COLUMNS: readonly (keyof PlanetRow)[] = [
   "citizens",
   "slaves",
   "robots",
+  "rulers",
+  "specialists",
+  "workers",
+  "citizen_workers",
+  "mitron_workers",
+  "kelsiote_workers",
+  "robot_workers",
   "stability",
   "crime",
   "amenities",
+  "consumer_good_jobs",
+  "free_consumer_goods_jobs",
+  "alloy_jobs",
+  "free_alloy_jobs",
   "free_ruler_jobs",
   "free_specialist_jobs",
   "free_worker_jobs",
@@ -137,9 +159,20 @@ export function analyzeGamestate(gamestate: string, saveFile: string): SaveAnaly
       citizens: pops?.citizens ?? 0,
       slaves: pops?.slaves ?? 0,
       robots: pops?.robots ?? 0,
+      rulers: popJobOccupancy?.rulers ?? 0,
+      specialists: popJobOccupancy?.specialists ?? 0,
+      workers: popJobOccupancy?.workers ?? 0,
+      citizen_workers: popJobOccupancy?.citizenWorkers ?? 0,
+      mitron_workers: popJobOccupancy?.mitronWorkers ?? 0,
+      kelsiote_workers: popJobOccupancy?.kelsioteWorkers ?? 0,
+      robot_workers: popJobOccupancy?.robotWorkers ?? 0,
       stability: round(numberFromField(planet, "stability"), 2),
       crime: round(numberFromField(planet, "crime"), 2),
       amenities: round(planetAmenities(planet), 1),
+      consumer_good_jobs: popJobOccupancy?.consumerGoodJobs ?? 0,
+      free_consumer_goods_jobs: jobs?.consumerGoods ?? 0,
+      alloy_jobs: popJobOccupancy?.alloyJobs ?? 0,
+      free_alloy_jobs: jobs?.alloys ?? 0,
       free_ruler_jobs: jobs?.ruler ?? 0,
       free_specialist_jobs: jobs?.specialist ?? 0,
       free_worker_jobs: jobs?.worker ?? 0,
@@ -367,6 +400,26 @@ function emptyPopCounts(): PopCounts {
 interface PopJobOccupancyCounts {
   jobless: number;
   civilians: number;
+  rulers: number;
+  specialists: number;
+  workers: number;
+  citizenWorkers: number;
+  mitronWorkers: number;
+  kelsioteWorkers: number;
+  robotWorkers: number;
+  consumerGoodJobs: number;
+  alloyJobs: number;
+}
+
+interface PopGroupInfo {
+  category: string;
+  isRobot: boolean;
+  speciesNames: readonly string[];
+}
+
+interface OccupiedPopAssignment {
+  popGroupId: string;
+  amount: number;
 }
 
 function aggregatePopJobOccupancyByPlanet(root: PdxObject): Map<string, PopJobOccupancyCounts> {
@@ -376,6 +429,8 @@ function aggregatePopJobOccupancyByPlanet(root: PdxObject): Map<string, PopJobOc
   if (!popJobs) {
     return result;
   }
+
+  const popGroupsById = buildPopGroupInfoById(root);
 
   for (const assignment of popJobs.assignments) {
     if (!isPdxObject(assignment.value)) {
@@ -390,23 +445,42 @@ function aggregatePopJobOccupancyByPlanet(root: PdxObject): Map<string, PopJobOc
     }
 
     const type = getString(job, "type") ?? "";
-
-    if (type !== "civilian" && !isJoblessPopCategory(type)) {
-      continue;
-    }
-
     const amount = occupiedPopAmount(job);
 
     if (amount <= 0) {
       continue;
     }
 
-    const counts = result.get(planetId) ?? { jobless: 0, civilians: 0 };
+    const counts = result.get(planetId) ?? emptyPopJobOccupancyCounts();
+    const isJobless = isJoblessPopCategory(type);
+    const jobTier = jobCategory(type);
 
     if (type === "civilian") {
       counts.civilians += amount;
-    } else {
+    } else if (isJobless) {
       counts.jobless += amount;
+    }
+
+    if (isJobless || type === "civilian") {
+      result.set(planetId, counts);
+      continue;
+    }
+
+    if (jobTier === "ruler") {
+      counts.rulers += amount;
+    } else if (jobTier === "specialist") {
+      counts.specialists += amount;
+    } else if (jobTier === "worker") {
+      counts.workers += amount;
+      addWorkerBreakdown(counts, occupiedPopAssignments(job), popGroupsById);
+    }
+
+    if (CONSUMER_GOOD_JOB_TYPES.has(type)) {
+      counts.consumerGoodJobs += amount;
+    }
+
+    if (ALLOY_JOB_TYPES.has(type)) {
+      counts.alloyJobs += amount;
     }
 
     result.set(planetId, counts);
@@ -415,15 +489,131 @@ function aggregatePopJobOccupancyByPlanet(root: PdxObject): Map<string, PopJobOc
   return result;
 }
 
-function occupiedPopAmount(job: PdxObject): number {
-  const popGroups = getObject(job, "pop_groups");
-  let amount = 0;
+function emptyPopJobOccupancyCounts(): PopJobOccupancyCounts {
+  return {
+    jobless: 0,
+    civilians: 0,
+    rulers: 0,
+    specialists: 0,
+    workers: 0,
+    citizenWorkers: 0,
+    mitronWorkers: 0,
+    kelsioteWorkers: 0,
+    robotWorkers: 0,
+    consumerGoodJobs: 0,
+    alloyJobs: 0,
+  };
+}
 
-  for (const value of popGroups?.values ?? []) {
-    if (isPdxObject(value)) {
-      amount += numberFromField(value, "amount");
+function buildPopGroupInfoById(root: PdxObject): Map<string, PopGroupInfo> {
+  const result = new Map<string, PopGroupInfo>();
+  const popGroups = getObject(root, "pop_groups");
+
+  if (!popGroups) {
+    return result;
+  }
+
+  const mechanicalSpecies = mechanicalSpeciesIds(root);
+  const speciesNames = speciesNamesById(root);
+
+  for (const assignment of popGroups.assignments) {
+    if (!isPdxObject(assignment.value)) {
+      continue;
+    }
+
+    const key = getObject(assignment.value, "key");
+    const category = getString(key, "category") ?? "";
+    const speciesId = getString(key, "species") ?? "";
+
+    result.set(assignment.key, {
+      category,
+      isRobot: isMechanicalPop(category, speciesId, mechanicalSpecies),
+      speciesNames: speciesNames.get(speciesId) ?? [],
+    });
+  }
+
+  return result;
+}
+
+function speciesNamesById(root: PdxObject): Map<string, string[]> {
+  const result = new Map<string, string[]>();
+  const speciesDb = getObject(root, "species_db");
+
+  if (!speciesDb) {
+    return result;
+  }
+
+  for (const assignment of speciesDb.assignments) {
+    if (!isPdxObject(assignment.value)) {
+      continue;
+    }
+
+    const species = assignment.value;
+    const names = [
+      resolveName(getFirst(species, "name")),
+      resolveName(getFirst(species, "plural")),
+      resolveName(getFirst(species, "adjective")),
+      getString(species, "name_data") ?? "",
+    ].filter((name) => name.length > 0);
+
+    result.set(assignment.key, names);
+  }
+
+  return result;
+}
+
+function addWorkerBreakdown(
+  counts: PopJobOccupancyCounts,
+  assignments: readonly OccupiedPopAssignment[],
+  popGroupsById: ReadonlyMap<string, PopGroupInfo>,
+): void {
+  for (const assignment of assignments) {
+    const popGroup = popGroupsById.get(assignment.popGroupId);
+
+    if (!popGroup) {
+      continue;
+    }
+
+    if (popGroup.isRobot) {
+      counts.robotWorkers += assignment.amount;
+    } else if (isCitizenPopCategory(popGroup.category)) {
+      counts.citizenWorkers += assignment.amount;
+    }
+
+    if (matchesSpeciesName(popGroup.speciesNames, "mitron")) {
+      counts.mitronWorkers += assignment.amount;
+    }
+
+    if (matchesSpeciesName(popGroup.speciesNames, "kelsiote")) {
+      counts.kelsioteWorkers += assignment.amount;
     }
   }
+}
+
+function occupiedPopAssignments(job: PdxObject): OccupiedPopAssignment[] {
+  const popGroups = getObject(job, "pop_groups");
+  const result: OccupiedPopAssignment[] = [];
+
+  for (const value of popGroups?.values ?? []) {
+    if (!isPdxObject(value)) {
+      continue;
+    }
+
+    const amount = numberFromField(value, "amount");
+
+    if (amount > 0) {
+      result.push({
+        popGroupId: getString(value, "pop_group") ?? "",
+        amount,
+      });
+    }
+  }
+
+  return result;
+}
+
+function occupiedPopAmount(job: PdxObject): number {
+  const amount = occupiedPopAssignments(job).reduce((total, assignment) => total + assignment.amount, 0);
 
   if (amount > 0) {
     return amount;
@@ -432,10 +622,17 @@ function occupiedPopAmount(job: PdxObject): number {
   return Math.max(0, Math.round(numberFromField(job, "workforce")));
 }
 
+function matchesSpeciesName(names: readonly string[], expected: string): boolean {
+  const normalizedExpected = expected.toLocaleLowerCase();
+  return names.some((name) => name.toLocaleLowerCase().includes(normalizedExpected));
+}
+
 interface JobCounts {
   ruler: number;
   specialist: number;
   worker: number;
+  consumerGoods: number;
+  alloys: number;
 }
 
 function aggregateJobsByPlanet(root: PdxObject): Map<string, JobCounts> {
@@ -458,26 +655,15 @@ function aggregateJobsByPlanet(root: PdxObject): Map<string, JobCounts> {
       continue;
     }
 
-    const workforce = numberFromField(job, "workforce");
-
-    if (workforce < 0) {
-      continue;
-    }
-
-    const maxWorkforce = numberFromField(job, "max_workforce");
-
-    if (maxWorkforce <= 0) {
-      continue;
-    }
-
-    const open = Math.max(0, Math.round(maxWorkforce - workforce));
+    const open = openJobSlots(job);
 
     if (open <= 0) {
       continue;
     }
 
-    const counts = result.get(planetId) ?? { ruler: 0, specialist: 0, worker: 0 };
-    const category = jobCategory(getString(job, "type") ?? "");
+    const counts = result.get(planetId) ?? emptyJobCounts();
+    const type = getString(job, "type") ?? "";
+    const category = jobCategory(type);
 
     if (category === "ruler") {
       counts.ruler += open;
@@ -487,10 +673,44 @@ function aggregateJobsByPlanet(root: PdxObject): Map<string, JobCounts> {
       counts.worker += open;
     }
 
+    if (CONSUMER_GOOD_JOB_TYPES.has(type)) {
+      counts.consumerGoods += open;
+    }
+
+    if (ALLOY_JOB_TYPES.has(type)) {
+      counts.alloys += open;
+    }
+
     result.set(planetId, counts);
   }
 
   return result;
+}
+
+function emptyJobCounts(): JobCounts {
+  return {
+    ruler: 0,
+    specialist: 0,
+    worker: 0,
+    consumerGoods: 0,
+    alloys: 0,
+  };
+}
+
+function openJobSlots(job: PdxObject): number {
+  const workforce = numberFromField(job, "workforce");
+
+  if (workforce < 0) {
+    return 0;
+  }
+
+  const maxWorkforce = numberFromField(job, "max_workforce");
+
+  if (maxWorkforce <= 0) {
+    return 0;
+  }
+
+  return Math.max(0, Math.round(maxWorkforce - workforce));
 }
 
 type JobCategory = "ruler" | "specialist" | "worker" | "other";
@@ -509,6 +729,7 @@ const RULER_JOB_TYPES = new Set<string>([
 
 const SPECIALIST_JOB_TYPES = new Set<string>([
   "artisan",
+  "operator",
   "foundry",
   "fabricator",
   "healthcare",
@@ -619,6 +840,18 @@ const CITIZEN_POP_CATEGORIES = new Set<string>([
   "ruler_unemployment",
   "specialist_unemployment",
   "worker_unemployment",
+]);
+
+const CONSUMER_GOOD_JOB_TYPES = new Set<string>([
+  "artisan",
+]);
+
+const ALLOY_JOB_TYPES = new Set<string>([
+  "fabricator",
+  "foundry",
+  "manufactorium_specialist",
+  "metallurgist",
+  "operator",
 ]);
 
 const MECHANICAL_SPECIES_CLASSES = new Set<string>([

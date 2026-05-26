@@ -48,7 +48,7 @@ planets={
       planet_class="pc_continental"
       planet_size=18
       owner=0
-      pop_groups={ 1001 1002 1003 1004 1005 }
+      pop_groups={ 1001 1002 1003 1004 1005 1008 }
       num_sapient_pops=200
       stability=72.5
       crime=4
@@ -91,6 +91,7 @@ species_db={
     traits={ trait="trait_organic" }
   }
   2={
+    name={ key="SPEC_Mitron" }
     class="MAM"
     traits={ trait="trait_organic" }
   }
@@ -98,26 +99,35 @@ species_db={
     class="ROBOT"
     traits={ trait="trait_mechanical" }
   }
+  4={
+    name={ key="SPEC_kelsiote" }
+    class="MAM"
+    traits={ trait="trait_organic" }
+  }
 }
 pop_groups={
-  1001={ planet=10 size=100 key={ species=1 category="specialist" } }
+  1001={ planet=10 size=70 key={ species=1 category="specialist" } }
   1002={ planet=10 size=40 key={ species=2 category="slave" } }
   1003={ planet=10 size=30 key={ species=1 category="civilian" } }
-  1004={ planet=10 size=20 key={ species=1 category="worker_unemployment" } }
+  1004={ planet=10 size=30 key={ species=4 category="slave" } }
   1005={ planet=10 size=10 key={ species=3 category="worker" } }
   1006={ planet=11 size=50 key={ species=3 category="robot_servant" } }
   1007={ planet=50 size=80 key={ species=2 category="worker" } }
+  1008={ planet=10 size=20 key={ species=1 category="worker" } }
 }
 pop_jobs={
-  1={ type="farmer" planet=10 workforce=80 max_workforce=100 bonus_workforce=10 workforce_limit=100 }
-  2={ type="researcher" planet=10 workforce=20 max_workforce=30 bonus_workforce=1 workforce_limit=30 }
-  3={ type="bureaucrat" planet=10 workforce=10 max_workforce=10 bonus_workforce=1 workforce_limit=10 }
+  1={ type="farmer" planet=10 workforce=80 max_workforce=100 bonus_workforce=10 workforce_limit=100 pop_groups={ { pop_group=1008 amount=20 } { pop_group=1002 amount=40 } { pop_group=1004 amount=10 } { pop_group=1005 amount=10 } } }
+  2={ type="researcher" planet=10 workforce=20 max_workforce=30 bonus_workforce=1 workforce_limit=30 pop_groups={ { pop_group=1001 amount=20 } } }
+  3={ type="bureaucrat" planet=10 workforce=10 max_workforce=10 bonus_workforce=1 workforce_limit=10 pop_groups={ { pop_group=1001 amount=10 } } }
   4={ type="civilian" planet=10 workforce=29 max_workforce=-1 bonus_workforce=1 workforce_limit=-1 pop_groups={ { pop_group=1003 amount=30 } } }
   5={ type="miner" planet=11 workforce=15 max_workforce=20 bonus_workforce=1 workforce_limit=20 }
   6={ type="entertainer" planet=11 workforce=5 max_workforce=12 bonus_workforce=1 workforce_limit=12 }
   7={ type="farmer" planet=50 workforce=10 max_workforce=15 bonus_workforce=1 workforce_limit=15 }
-  8={ type="politician" planet=10 workforce=2 max_workforce=5 bonus_workforce=1 workforce_limit=5 }
+  8={ type="politician" planet=10 workforce=2 max_workforce=5 bonus_workforce=1 workforce_limit=5 pop_groups={ { pop_group=1001 amount=2 } } }
   9={ type="worker_unemployment" planet=10 workforce=19 max_workforce=-1 bonus_workforce=1 workforce_limit=-1 pop_groups={ { pop_group=1004 amount=20 } } }
+  10={ type="artisan" planet=10 workforce=12 max_workforce=20 bonus_workforce=1 workforce_limit=20 pop_groups={ { pop_group=1001 amount=12 } } }
+  11={ type="foundry" planet=10 workforce=7 max_workforce=10 bonus_workforce=1 workforce_limit=10 pop_groups={ { pop_group=1001 amount=7 } } }
+  12={ type="manufactorium_specialist" planet=10 workforce=3 max_workforce=5 bonus_workforce=1 workforce_limit=5 pop_groups={ { pop_group=1001 amount=3 } } }
 }
 `;
 
@@ -153,12 +163,23 @@ test("computes per-planet stats correctly", () => {
   assert.equal(earth.amenities, 100);
   assert.equal(earth.jobless, 20);
   assert.equal(earth.civilians, 30);
-  assert.equal(earth.citizens, 150);
-  assert.equal(earth.slaves, 40);
+  assert.equal(earth.citizens, 120);
+  assert.equal(earth.slaves, 70);
   assert.equal(earth.robots, 10);
-  // Ruler jobs: politician 5-2=3; specialist/worker unchanged
+  assert.equal(earth.rulers, 2);
+  assert.equal(earth.specialists, 52);
+  assert.equal(earth.workers, 80);
+  assert.equal(earth.citizen_workers, 20);
+  assert.equal(earth.mitron_workers, 40);
+  assert.equal(earth.kelsiote_workers, 10);
+  assert.equal(earth.robot_workers, 10);
+  assert.equal(earth.consumer_good_jobs, 12);
+  assert.equal(earth.free_consumer_goods_jobs, 8);
+  assert.equal(earth.alloy_jobs, 10);
+  assert.equal(earth.free_alloy_jobs, 5);
+  // Free jobs are based on max workforce minus current workforce for each tier.
   assert.equal(earth.free_ruler_jobs, 3);
-  assert.equal(earth.free_specialist_jobs, 10);
+  assert.equal(earth.free_specialist_jobs, 23);
   assert.equal(earth.free_worker_jobs, 20);
 });
 

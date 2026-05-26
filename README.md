@@ -53,9 +53,20 @@ Each row is a planet owned by the player's empire. The capital is sorted first, 
 | `citizens` | Non-mechanical, non-slave pops in citizen categories |
 | `slaves` | Pops in the slave category |
 | `robots` | Mechanical pops, based on robot categories or mechanical species |
+| `rulers` | Pops currently assigned to ruler-tier jobs |
+| `specialists` | Pops currently assigned to specialist-tier jobs |
+| `workers` | Pops currently assigned to worker-tier jobs |
+| `citizen_workers` | Non-mechanical citizen pops currently assigned to worker-tier jobs |
+| `mitron_workers` | Mitron pops currently assigned to worker-tier jobs |
+| `kelsiote_workers` | Kelsiote pops currently assigned to worker-tier jobs |
+| `robot_workers` | Mechanical pops currently assigned to worker-tier jobs |
 | `stability` | Planet stability (0-100) |
 | `crime` | Planet crime (0-100) |
 | `amenities` | Net free amenities (supply minus usage) |
+| `consumer_good_jobs` | Pops currently assigned to artisan jobs |
+| `free_consumer_goods_jobs` | Unfilled workforce for artisan jobs |
+| `alloy_jobs` | Pops currently assigned to alloy-producing jobs |
+| `free_alloy_jobs` | Unfilled workforce for alloy-producing jobs |
 | `free_ruler_jobs` | Unfilled workforce for ruler-tier jobs |
 | `free_specialist_jobs` | Unfilled workforce for specialist-tier jobs |
 | `free_worker_jobs` | Unfilled workforce for worker-tier jobs |
