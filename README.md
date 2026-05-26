@@ -48,13 +48,18 @@ Each row is a planet owned by the player's empire. The capital is sorted first, 
 | `planet_size` | Planet size in tiles |
 | `planet_type` | Planet class without the `pc_` prefix, capitalized (e.g. `Continental`, `Gaia`) |
 | `total_population` | Number of sapient pops on the planet |
+| `jobless` | Pops in unemployment categories |
+| `civilians` | Pops in the civilian category |
+| `citizens` | Non-mechanical, non-slave pops in citizen categories |
+| `slaves` | Pops in the slave category |
+| `robots` | Mechanical pops, based on robot categories or mechanical species |
 | `stability` | Planet stability (0-100) |
 | `crime` | Planet crime (0-100) |
 | `happiness` | Pop-size-weighted average happiness on the planet (0-100) |
 | `amenities` | Net free amenities (supply minus usage) |
-| `available_ruler_jobs` | Unfilled workforce for ruler-tier jobs |
-| `available_specialist_jobs` | Unfilled workforce for specialist-tier jobs |
-| `available_worker_jobs` | Unfilled workforce for worker-tier jobs |
+| `free_ruler_jobs` | Unfilled workforce for ruler-tier jobs |
+| `free_specialist_jobs` | Unfilled workforce for specialist-tier jobs |
+| `free_worker_jobs` | Unfilled workforce for worker-tier jobs |
 
 ## Development
 

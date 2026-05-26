@@ -48,7 +48,7 @@ planets={
       planet_class="pc_continental"
       planet_size=18
       owner=0
-      pop_groups={ 1001 1002 }
+      pop_groups={ 1001 1002 1003 1004 1005 }
       num_sapient_pops=200
       stability=72.5
       crime=4
@@ -61,7 +61,7 @@ planets={
       planet_class="pc_gaia"
       planet_size=12
       owner=0
-      pop_groups={ 1003 }
+      pop_groups={ 1006 }
       num_sapient_pops=50
       stability=55
       crime=2
@@ -78,18 +78,35 @@ planets={
       planet_class="pc_arid"
       planet_size=15
       owner=1
-      pop_groups={ 1004 }
+      pop_groups={ 1007 }
       num_sapient_pops=80
       stability=60
       free_amenities=10
     }
   }
 }
+species_db={
+  1={
+    class="HUM"
+    traits={ trait="trait_organic" }
+  }
+  2={
+    class="MAM"
+    traits={ trait="trait_organic" }
+  }
+  3={
+    class="ROBOT"
+    traits={ trait="trait_mechanical" }
+  }
+}
 pop_groups={
-  1001={ planet=10 size=120 happiness=0.8 }
-  1002={ planet=10 size=80 happiness=0.6 }
-  1003={ planet=11 size=50 happiness=0.9 }
-  1004={ planet=50 size=80 happiness=0.5 }
+  1001={ planet=10 size=100 happiness=0.8 key={ species=1 category="specialist" } }
+  1002={ planet=10 size=40 happiness=0.6 key={ species=2 category="slave" } }
+  1003={ planet=10 size=30 happiness=0.7 key={ species=1 category="civilian" } }
+  1004={ planet=10 size=20 happiness=0.5 key={ species=1 category="worker_unemployment" } }
+  1005={ planet=10 size=10 happiness=0.5 key={ species=3 category="worker" } }
+  1006={ planet=11 size=50 happiness=0.9 key={ species=3 category="robot_servant" } }
+  1007={ planet=50 size=80 happiness=0.5 key={ species=2 category="worker" } }
 }
 pop_jobs={
   1={ type="farmer" planet=10 workforce=80 max_workforce=100 bonus_workforce=10 workforce_limit=100 }
@@ -132,13 +149,18 @@ test("computes per-planet stats correctly", () => {
   assert.equal(earth.total_population, 200);
   assert.equal(earth.stability, 72.5);
   assert.equal(earth.crime, 4);
-  // weighted happiness = (120 * 0.8 + 80 * 0.6) / 200 = 0.72 -> 72
-  assert.equal(earth.happiness, 72);
+  // weighted happiness = 140 / 200 = 0.7 -> 70
+  assert.equal(earth.happiness, 70);
   assert.equal(earth.amenities, 100);
+  assert.equal(earth.jobless, 20);
+  assert.equal(earth.civilians, 30);
+  assert.equal(earth.citizens, 150);
+  assert.equal(earth.slaves, 40);
+  assert.equal(earth.robots, 10);
   // Ruler jobs: politician 5-2=3; specialist/worker unchanged
-  assert.equal(earth.available_ruler_jobs, 3);
-  assert.equal(earth.available_specialist_jobs, 10);
-  assert.equal(earth.available_worker_jobs, 20);
+  assert.equal(earth.free_ruler_jobs, 3);
+  assert.equal(earth.free_specialist_jobs, 10);
+  assert.equal(earth.free_worker_jobs, 20);
 });
 
 test("renders a CSV with the expected header and number of rows", () => {

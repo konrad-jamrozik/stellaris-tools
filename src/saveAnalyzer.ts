@@ -19,13 +19,18 @@ export interface PlanetRow {
   planet_size: number;
   planet_type: string;
   total_population: number;
+  jobless: number;
+  civilians: number;
+  citizens: number;
+  slaves: number;
+  robots: number;
   stability: number;
   crime: number;
   happiness: number;
   amenities: number;
-  available_ruler_jobs: number;
-  available_specialist_jobs: number;
-  available_worker_jobs: number;
+  free_ruler_jobs: number;
+  free_specialist_jobs: number;
+  free_worker_jobs: number;
 }
 
 export interface SaveAnalysis {
@@ -43,13 +48,18 @@ export const CSV_COLUMNS: readonly (keyof PlanetRow)[] = [
   "planet_size",
   "planet_type",
   "total_population",
+  "jobless",
+  "civilians",
+  "citizens",
+  "slaves",
+  "robots",
   "stability",
   "crime",
   "happiness",
   "amenities",
-  "available_ruler_jobs",
-  "available_specialist_jobs",
-  "available_worker_jobs",
+  "free_ruler_jobs",
+  "free_specialist_jobs",
+  "free_worker_jobs",
 ] as const;
 
 const NO_OWNER = new Set(["", "4294967295", "-1"]);
@@ -89,6 +99,7 @@ export function analyzeGamestate(gamestate: string, saveFile: string): SaveAnaly
   const planetToSector = buildPlanetToSectorMap(root);
   const sectorsContainer = getObject(root, "sectors");
   const happinessByPlanet = aggregateHappinessByPlanet(root);
+  const popsByPlanet = aggregatePopsByPlanet(root);
   const jobsByPlanet = aggregateJobsByPlanet(root);
   const planetEntries = collectPlanetEntries(root);
 
@@ -113,6 +124,7 @@ export function analyzeGamestate(gamestate: string, saveFile: string): SaveAnaly
       : "";
 
     const jobs = jobsByPlanet.get(planetId);
+    const pops = popsByPlanet.get(planetId);
     const planetClass = getString(planet, "planet_class") ?? "";
 
     rows.push({
@@ -121,13 +133,18 @@ export function analyzeGamestate(gamestate: string, saveFile: string): SaveAnaly
       planet_size: numberFromField(planet, "planet_size"),
       planet_type: humanizePlanetClass(planetClass),
       total_population: planetPopulation(planet),
+      jobless: pops?.jobless ?? 0,
+      civilians: pops?.civilians ?? 0,
+      citizens: pops?.citizens ?? 0,
+      slaves: pops?.slaves ?? 0,
+      robots: pops?.robots ?? 0,
       stability: round(numberFromField(planet, "stability"), 2),
       crime: round(numberFromField(planet, "crime"), 2),
       happiness: round((happinessByPlanet.get(planetId) ?? 0) * 100, 1),
       amenities: round(planetAmenities(planet), 1),
-      available_ruler_jobs: jobs?.ruler ?? 0,
-      available_specialist_jobs: jobs?.specialist ?? 0,
-      available_worker_jobs: jobs?.worker ?? 0,
+      free_ruler_jobs: jobs?.ruler ?? 0,
+      free_specialist_jobs: jobs?.specialist ?? 0,
+      free_worker_jobs: jobs?.worker ?? 0,
     });
   }
 
@@ -330,6 +347,82 @@ function aggregateHappinessByPlanet(root: PdxObject): Map<string, number> {
   return averages;
 }
 
+interface PopCounts {
+  jobless: number;
+  civilians: number;
+  citizens: number;
+  slaves: number;
+  robots: number;
+}
+
+function aggregatePopsByPlanet(root: PdxObject): Map<string, PopCounts> {
+  const result = new Map<string, PopCounts>();
+  const popGroups = getObject(root, "pop_groups");
+
+  if (!popGroups) {
+    return result;
+  }
+
+  const mechanicalSpecies = mechanicalSpeciesIds(root);
+
+  for (const assignment of popGroups.assignments) {
+    if (!isPdxObject(assignment.value)) {
+      continue;
+    }
+
+    const popGroup = assignment.value;
+    const planetId = getString(popGroup, "planet");
+
+    if (!planetId) {
+      continue;
+    }
+
+    const size = numberFromField(popGroup, "size");
+
+    if (size <= 0) {
+      continue;
+    }
+
+    const key = getObject(popGroup, "key");
+    const category = getString(key, "category") ?? "";
+    const speciesId = getString(key, "species") ?? "";
+    const isRobot = isMechanicalPop(category, speciesId, mechanicalSpecies);
+    const counts = result.get(planetId) ?? emptyPopCounts();
+
+    if (isJoblessPopCategory(category)) {
+      counts.jobless += size;
+    }
+
+    if (category === "civilian") {
+      counts.civilians += size;
+    }
+
+    if (category === "slave") {
+      counts.slaves += size;
+    }
+
+    if (isRobot) {
+      counts.robots += size;
+    } else if (isCitizenPopCategory(category)) {
+      counts.citizens += size;
+    }
+
+    result.set(planetId, counts);
+  }
+
+  return result;
+}
+
+function emptyPopCounts(): PopCounts {
+  return {
+    jobless: 0,
+    civilians: 0,
+    citizens: 0,
+    slaves: 0,
+    robots: 0,
+  };
+}
+
 interface JobCounts {
   ruler: number;
   specialist: number;
@@ -507,6 +600,28 @@ const WORKER_JOB_TYPES = new Set<string>([
   "menial_drone",
 ]);
 
+const CITIZEN_POP_CATEGORIES = new Set<string>([
+  "ruler",
+  "specialist",
+  "worker",
+  "civilian",
+  "criminal",
+  "precursor",
+  "ruler_unemployment",
+  "specialist_unemployment",
+  "worker_unemployment",
+]);
+
+const MECHANICAL_SPECIES_CLASSES = new Set<string>([
+  "MACHINE",
+  "ROBOT",
+]);
+
+const MECHANICAL_SPECIES_TRAITS = new Set<string>([
+  "trait_machine_unit",
+  "trait_mechanical",
+]);
+
 function jobCategory(type: string): JobCategory {
   if (RULER_JOB_TYPES.has(type)) {
     return "ruler";
@@ -521,6 +636,50 @@ function jobCategory(type: string): JobCategory {
   }
 
   return "other";
+}
+
+function mechanicalSpeciesIds(root: PdxObject): Set<string> {
+  const result = new Set<string>();
+  const speciesDb = getObject(root, "species_db");
+
+  if (!speciesDb) {
+    return result;
+  }
+
+  for (const assignment of speciesDb.assignments) {
+    if (!isPdxObject(assignment.value)) {
+      continue;
+    }
+
+    if (isMechanicalSpecies(assignment.value)) {
+      result.add(assignment.key);
+    }
+  }
+
+  return result;
+}
+
+function isMechanicalSpecies(species: PdxObject): boolean {
+  const speciesClass = getString(species, "class") ?? "";
+
+  if (MECHANICAL_SPECIES_CLASSES.has(speciesClass)) {
+    return true;
+  }
+
+  return getAssignments(getObject(species, "traits"), "trait")
+    .some((trait) => typeof trait === "string" && MECHANICAL_SPECIES_TRAITS.has(trait));
+}
+
+function isMechanicalPop(category: string, speciesId: string, mechanicalSpecies: ReadonlySet<string>): boolean {
+  return category.startsWith("robot") || (speciesId !== "" && mechanicalSpecies.has(speciesId));
+}
+
+function isJoblessPopCategory(category: string): boolean {
+  return category === "unemployment" || category.endsWith("_unemployment");
+}
+
+function isCitizenPopCategory(category: string): boolean {
+  return CITIZEN_POP_CATEGORIES.has(category);
 }
 
 function isInhabitedPlanet(planet: PdxObject): boolean {
