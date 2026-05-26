@@ -13,169 +13,161 @@ import {
   type PdxValue,
 } from "./pdxParser.js";
 
-export interface AnalyzerOptions {
-  recursive?: boolean;
-  includeAllCountries?: boolean;
-  includeBom?: boolean;
+export interface PlanetRow {
+  planet_name: string;
+  sector_name: string;
+  planet_size: number;
+  planet_type: string;
+  total_population: number;
+  stability: number;
+  crime: number;
+  happiness: number;
+  amenities: number;
+  available_ruler_jobs: number;
+  available_specialist_jobs: number;
+  available_worker_jobs: number;
 }
 
-export interface AnalyzeInputResult {
-  rows: AnalysisRow[];
-  analyzedFiles: string[];
-  warnings: string[];
+export interface SaveAnalysis {
+  save_file: string;
+  save_name: string;
+  game_date: string;
+  player_country_id: string;
+  empire_name: string;
+  rows: PlanetRow[];
 }
 
-export type AnalysisRow = Record<string, string | number | boolean>;
-
-const RESOURCE_NAMES = [
-  "energy",
-  "minerals",
-  "food",
-  "alloys",
-  "consumer_goods",
-  "unity",
-  "influence",
-  "minor_artifacts",
-  "volatile_motes",
-  "exotic_gases",
-  "rare_crystals",
-  "dark_matter",
-  "living_metal",
-  "zro",
-  "nanites",
+export const CSV_COLUMNS: readonly (keyof PlanetRow)[] = [
+  "planet_name",
+  "sector_name",
+  "planet_size",
+  "planet_type",
+  "total_population",
+  "stability",
+  "crime",
+  "happiness",
+  "amenities",
+  "available_ruler_jobs",
+  "available_specialist_jobs",
+  "available_worker_jobs",
 ] as const;
 
-export const CSV_COLUMNS = [
-  "save_file",
-  "save_name",
-  "game_date",
-  "country_id",
-  "empire_name",
-  "country_type",
-  "authority",
-  "government",
-  "capital_id",
-  "colonies",
-  "owned_systems",
-  "pops",
-  "fleets",
-  "fleet_power",
-  ...RESOURCE_NAMES,
-];
+const NO_OWNER = new Set(["", "4294967295", "-1"]);
 
-export async function analyzeInput(inputPath: string, options: AnalyzerOptions = {}): Promise<AnalyzeInputResult> {
-  const stat = await fs.stat(inputPath);
-  const saveFiles = stat.isDirectory()
-    ? await collectSaveFiles(inputPath, options.recursive ?? true)
-    : [inputPath];
+export async function analyzeSaveFile(saveFile: string): Promise<SaveAnalysis> {
+  const stat = await fs.stat(saveFile);
 
-  if (saveFiles.length === 0) {
-    throw new Error(`No .sav files found in ${inputPath}`);
+  if (!stat.isFile()) {
+    throw new Error(`${saveFile} is not a file. This tool only analyzes a single .sav file at a time.`);
   }
 
-  const rows: AnalysisRow[] = [];
-  const analyzedFiles: string[] = [];
-  const warnings: string[] = [];
-
-  for (const saveFile of saveFiles) {
-    try {
-      rows.push(...(await analyzeSaveFile(saveFile, options)));
-      analyzedFiles.push(saveFile);
-    } catch (error) {
-      warnings.push(`${saveFile}: ${error instanceof Error ? error.message : String(error)}`);
-    }
-  }
-
-  if (rows.length === 0 && warnings.length > 0) {
-    throw new Error(`No rows produced. First error: ${warnings[0]}`);
-  }
-
-  return { rows, analyzedFiles, warnings };
-}
-
-export async function analyzeSaveFile(saveFile: string, options: AnalyzerOptions = {}): Promise<AnalysisRow[]> {
   const gamestate = await readGamestate(saveFile);
-  return analyzeGamestate(gamestate, saveFile, options);
+  return analyzeGamestate(gamestate, saveFile);
 }
 
-export function analyzeGamestate(
-  gamestate: string,
-  saveFile: string,
-  options: AnalyzerOptions = {},
-): AnalysisRow[] {
+export function analyzeGamestate(gamestate: string, saveFile: string): SaveAnalysis {
   const root = parsePdx(gamestate);
   const saveName = path.basename(saveFile);
   const gameDate = getString(root, "date") ?? dateFromFilename(saveName);
+
+  const playerCountryId = findPlayerCountryId(root);
+
+  if (!playerCountryId) {
+    throw new Error("Could not determine the player's country from the save file");
+  }
+
   const countries = getObject(root, "country") ?? getObject(root, "countries");
+  const playerCountry = countries ? getObject(countries, playerCountryId) : undefined;
 
-  if (!countries) {
-    throw new Error("Could not find top-level country or countries object in gamestate");
+  if (!playerCountry) {
+    throw new Error(`Player country ${playerCountryId} not found in gamestate`);
   }
 
-  const planetStats = extractPlanetStats(root);
-  const fleetStats = extractFleetStats(root);
-  const systemStats = extractSystemStats(root);
-  const rows: AnalysisRow[] = [];
+  const empireName = resolveName(getFirst(playerCountry, "name"));
+  const capitalId = getString(playerCountry, "capital") ?? getString(playerCountry, "capital_scope") ?? "";
 
-  for (const assignment of countries.assignments) {
-    if (!isPdxObject(assignment.value)) {
+  const planetToSector = buildPlanetToSectorMap(root);
+  const sectorsContainer = getObject(root, "sectors");
+  const happinessByPlanet = aggregateHappinessByPlanet(root);
+  const jobsByPlanet = aggregateJobsByPlanet(root);
+  const planetEntries = collectPlanetEntries(root);
+
+  const rows: PlanetRow[] = [];
+
+  for (const entry of planetEntries) {
+    const planet = entry.planet;
+    const owner = getString(planet, "owner");
+
+    if (!owner || owner !== playerCountryId) {
       continue;
     }
 
-    const country = assignment.value;
-    const countryId = assignment.key;
-    const empireName = displayValue(getFirst(country, "name")) ?? "";
-    const countryType = getString(country, "type") ?? getString(country, "country_type") ?? "";
-    const directColonies = countCollection(getFirst(country, "owned_planets"));
-    const directSystems = countCollection(getFirst(country, "owned_systems"));
-    const directFleets = countCollection(getFirst(country, "owned_fleets"));
-    const popCount = Math.max(countCollection(getFirst(country, "owned_pops")), planetStats.popsByOwner.get(countryId) ?? 0);
-    const colonies = Math.max(directColonies, planetStats.planetsByOwner.get(countryId) ?? 0);
-    const systems = Math.max(directSystems, systemStats.systemsByOwner.get(countryId) ?? 0);
-    const fleets = Math.max(directFleets, fleetStats.fleetsByOwner.get(countryId) ?? 0);
-    const fleetPower = fleetStats.powerByOwner.get(countryId) ?? firstNumber(country, ["fleet_power", "military_power"]) ?? 0;
-
-    if (!options.includeAllCountries && !isInterestingCountry(country, empireName, colonies, systems, fleets, popCount)) {
+    if (!isInhabitedPlanet(planet)) {
       continue;
     }
 
-    const row: AnalysisRow = {
-      save_file: saveFile,
-      save_name: saveName,
-      game_date: gameDate,
-      country_id: countryId,
-      empire_name: empireName,
-      country_type: countryType,
-      authority: getString(country, "authority") ?? "",
-      government: getString(country, "government") ?? "",
-      capital_id: getString(country, "capital") ?? getString(country, "capital_scope") ?? "",
-      colonies,
-      owned_systems: systems,
-      pops: popCount,
-      fleets,
-      fleet_power: round(fleetPower),
-    };
+    const planetId = entry.id;
+    const sectorId = planetToSector.get(planetId);
+    const sectorName = sectorId !== undefined
+      ? resolveName(getFirst(getObject(sectorsContainer, sectorId), "name"))
+      : "";
 
-    for (const resourceName of RESOURCE_NAMES) {
-      row[resourceName] = round(extractResource(country, resourceName) ?? 0);
-    }
+    const jobs = jobsByPlanet.get(planetId);
+    const planetClass = getString(planet, "planet_class") ?? "";
 
-    rows.push(row);
+    rows.push({
+      planet_name: resolveName(getFirst(planet, "name")),
+      sector_name: sectorName,
+      planet_size: numberFromField(planet, "planet_size"),
+      planet_type: humanizePlanetClass(planetClass),
+      total_population: planetPopulation(planet),
+      stability: round(numberFromField(planet, "stability"), 2),
+      crime: round(numberFromField(planet, "crime"), 2),
+      happiness: round((happinessByPlanet.get(planetId) ?? 0) * 100, 1),
+      amenities: round(planetAmenities(planet), 1),
+      available_ruler_jobs: jobs?.ruler ?? 0,
+      available_specialist_jobs: jobs?.specialist ?? 0,
+      available_worker_jobs: jobs?.worker ?? 0,
+    });
   }
+
+  const capitalName = capitalPlanetName(planetEntries, capitalId);
 
   rows.sort((left, right) => {
-    const bySave = String(left.save_file).localeCompare(String(right.save_file));
-    if (bySave !== 0) {
-      return bySave;
+    if (capitalName) {
+      if (left.planet_name === capitalName && right.planet_name !== capitalName) {
+        return -1;
+      }
+
+      if (right.planet_name === capitalName && left.planet_name !== capitalName) {
+        return 1;
+      }
     }
 
-    return String(left.country_id).localeCompare(String(right.country_id), undefined, { numeric: true });
+    const bySector = left.sector_name.localeCompare(right.sector_name);
+
+    if (bySector !== 0) {
+      return bySector;
+    }
+
+    return left.planet_name.localeCompare(right.planet_name);
   });
 
-  return rows;
+  return {
+    save_file: saveFile,
+    save_name: saveName,
+    game_date: gameDate,
+    player_country_id: playerCountryId,
+    empire_name: empireName,
+    rows,
+  };
 }
 
-export function rowsToCsv(rows: AnalysisRow[], columns = CSV_COLUMNS, includeBom = true): string {
+export function rowsToCsv(
+  rows: readonly PlanetRow[],
+  columns: readonly (keyof PlanetRow)[] = CSV_COLUMNS,
+  includeBom = true,
+): string {
   const csv = [
     columns.map(csvCell).join(","),
     ...rows.map((row) => columns.map((column) => csvCell(row[column] ?? "")).join(",")),
@@ -196,225 +188,473 @@ async function readGamestate(saveFile: string): Promise<string> {
   return gamestate.async("string");
 }
 
-async function collectSaveFiles(directory: string, recursive: boolean): Promise<string[]> {
-  const entries = await fs.readdir(directory, { withFileTypes: true });
-  const saveFiles: string[] = [];
-
-  for (const entry of entries) {
-    const entryPath = path.join(directory, entry.name);
-
-    if (entry.isDirectory() && recursive) {
-      saveFiles.push(...(await collectSaveFiles(entryPath, recursive)));
-      continue;
-    }
-
-    if (entry.isFile() && entry.name.toLowerCase().endsWith(".sav")) {
-      saveFiles.push(entryPath);
-    }
-  }
-
-  return saveFiles.sort();
+interface PlanetEntry {
+  id: string;
+  planet: PdxObject;
 }
 
-function extractPlanetStats(root: PdxObject): {
-  planetsByOwner: Map<string, number>;
-  popsByOwner: Map<string, number>;
-} {
-  const stats = {
-    planetsByOwner: new Map<string, number>(),
-    popsByOwner: new Map<string, number>(),
-  };
+function collectPlanetEntries(root: PdxObject): PlanetEntry[] {
+  const entries: PlanetEntry[] = [];
+  const planetsRoot = getObject(root, "planets") ?? getObject(root, "planet");
 
-  for (const planets of [getObject(root, "planets"), getObject(root, "planet")]) {
-    if (!planets) {
-      continue;
-    }
+  if (!planetsRoot) {
+    return entries;
+  }
 
-    for (const planet of childObjects(planets)) {
-      const owner = getString(planet, "owner") ?? getString(planet, "controller");
+  const containers: PdxObject[] = [];
+  const innerPlanetContainer = getObject(planetsRoot, "planet");
 
-      if (!owner || owner === "4294967295" || owner === "-1") {
-        continue;
+  if (innerPlanetContainer) {
+    containers.push(innerPlanetContainer);
+  } else {
+    containers.push(planetsRoot);
+  }
+
+  for (const container of containers) {
+    for (const assignment of container.assignments) {
+      if (isPdxObject(assignment.value)) {
+        entries.push({ id: assignment.key, planet: assignment.value });
       }
-
-      increment(stats.planetsByOwner, owner, 1);
-      increment(stats.popsByOwner, owner, countPlanetPops(planet));
     }
   }
 
-  return stats;
+  return entries;
 }
 
-function extractFleetStats(root: PdxObject): {
-  fleetsByOwner: Map<string, number>;
-  powerByOwner: Map<string, number>;
-} {
-  const stats = {
-    fleetsByOwner: new Map<string, number>(),
-    powerByOwner: new Map<string, number>(),
-  };
+function findPlayerCountryId(root: PdxObject): string | undefined {
+  const players = getObject(root, "player") ?? getObject(root, "players");
 
-  for (const containerName of ["fleet", "fleets"]) {
-    const fleetContainer = getObject(root, containerName);
-
-    if (!fleetContainer) {
-      continue;
-    }
-
-    for (const fleet of childObjects(fleetContainer)) {
-      const owner = getString(fleet, "owner");
-
-      if (!owner || owner === "4294967295" || owner === "-1") {
-        continue;
-      }
-
-      increment(stats.fleetsByOwner, owner, 1);
-      increment(stats.powerByOwner, owner, firstNumber(fleet, ["military_power", "fleet_power", "power"]) ?? 0);
-    }
-  }
-
-  return stats;
-}
-
-function extractSystemStats(root: PdxObject): { systemsByOwner: Map<string, number> } {
-  const systemsByOwner = new Map<string, number>();
-
-  for (const containerName of ["galactic_object", "galactic_objects", "starbase_mgr"]) {
-    const systemContainer = getObject(root, containerName);
-
-    if (!systemContainer) {
-      continue;
-    }
-
-    for (const system of childObjects(systemContainer)) {
-      const owner = getString(system, "owner");
-      const starbase = getObject(system, "starbase");
-      const starbaseOwner = owner ?? getString(starbase, "owner");
-
-      if (!starbaseOwner || starbaseOwner === "4294967295" || starbaseOwner === "-1") {
-        continue;
-      }
-
-      increment(systemsByOwner, starbaseOwner, 1);
-    }
-  }
-
-  return { systemsByOwner };
-}
-
-function childObjects(object: PdxObject): PdxObject[] {
-  const children: PdxObject[] = [];
-
-  for (const assignment of object.assignments) {
-    if (isPdxObject(assignment.value)) {
-      children.push(assignment.value);
-    }
-  }
-
-  for (const value of object.values) {
-    if (isPdxObject(value)) {
-      children.push(value);
-    }
-  }
-
-  return children;
-}
-
-function countPlanetPops(planet: PdxObject): number {
-  let count = 0;
-
-  count += getAssignments(planet, "pop").filter(isPdxObject).length;
-  count += countCollection(getFirst(planet, "pops"));
-
-  return count;
-}
-
-function countCollection(value: PdxValue | undefined): number {
-  if (value === undefined) {
-    return 0;
-  }
-
-  if (typeof value === "string") {
-    return value.length > 0 ? 1 : 0;
-  }
-
-  return value.values.length + value.assignments.length;
-}
-
-function extractResource(country: PdxObject, resourceName: string): number | undefined {
-  for (const containerName of ["resources", "resource_stockpile", "stockpile"]) {
-    const container = getObject(country, containerName);
-    const resource = getFirst(container, resourceName);
-    const amount = extractAmount(resource);
-
-    if (amount !== undefined) {
-      return amount;
-    }
-  }
-
-  return extractAmount(getFirst(country, resourceName));
-}
-
-function extractAmount(value: PdxValue | undefined): number | undefined {
-  const direct = numericValue(value);
-
-  if (direct !== undefined) {
-    return direct;
-  }
-
-  if (!isPdxObject(value)) {
+  if (!players) {
     return undefined;
   }
 
-  return firstNumber(value, ["amount", "value", "current", "stored"]);
-}
+  for (const assignment of players.assignments) {
+    if (assignment.key === "country" && typeof assignment.value === "string") {
+      return assignment.value;
+    }
 
-function firstNumber(object: PdxObject | undefined, keys: string[]): number | undefined {
-  for (const key of keys) {
-    const value = numericValue(getFirst(object, key));
+    if (isPdxObject(assignment.value)) {
+      const fromChild = getString(assignment.value, "country");
 
-    if (value !== undefined) {
-      return value;
+      if (fromChild) {
+        return fromChild;
+      }
+    }
+  }
+
+  for (const value of players.values) {
+    if (isPdxObject(value)) {
+      const fromChild = getString(value, "country");
+
+      if (fromChild) {
+        return fromChild;
+      }
     }
   }
 
   return undefined;
 }
 
-function displayValue(value: PdxValue | undefined): string | undefined {
+function buildPlanetToSectorMap(root: PdxObject): Map<string, string> {
+  const planetToSector = new Map<string, string>();
+  const systemsContainer = getObject(root, "galactic_object") ?? getObject(root, "galactic_objects");
+
+  if (!systemsContainer) {
+    return planetToSector;
+  }
+
+  for (const assignment of systemsContainer.assignments) {
+    if (!isPdxObject(assignment.value)) {
+      continue;
+    }
+
+    const system = assignment.value;
+    const sectorId = getString(system, "sector");
+
+    if (!sectorId || NO_OWNER.has(sectorId)) {
+      continue;
+    }
+
+    for (const planetAssignment of system.assignments) {
+      if (planetAssignment.key === "planet" && typeof planetAssignment.value === "string") {
+        planetToSector.set(planetAssignment.value, sectorId);
+      }
+    }
+  }
+
+  return planetToSector;
+}
+
+function aggregateHappinessByPlanet(root: PdxObject): Map<string, number> {
+  const totals = new Map<string, number>();
+  const sizes = new Map<string, number>();
+  const popGroups = getObject(root, "pop_groups");
+
+  if (!popGroups) {
+    return new Map();
+  }
+
+  for (const assignment of popGroups.assignments) {
+    if (!isPdxObject(assignment.value)) {
+      continue;
+    }
+
+    const popGroup = assignment.value;
+    const planetId = getString(popGroup, "planet");
+
+    if (!planetId) {
+      continue;
+    }
+
+    const size = numberFromField(popGroup, "size");
+
+    if (size <= 0) {
+      continue;
+    }
+
+    const happiness = numberFromField(popGroup, "happiness");
+    totals.set(planetId, (totals.get(planetId) ?? 0) + size * happiness);
+    sizes.set(planetId, (sizes.get(planetId) ?? 0) + size);
+  }
+
+  const averages = new Map<string, number>();
+
+  for (const [planetId, weightedTotal] of totals) {
+    const size = sizes.get(planetId) ?? 0;
+
+    if (size > 0) {
+      averages.set(planetId, weightedTotal / size);
+    }
+  }
+
+  return averages;
+}
+
+interface JobCounts {
+  ruler: number;
+  specialist: number;
+  worker: number;
+}
+
+function aggregateJobsByPlanet(root: PdxObject): Map<string, JobCounts> {
+  const result = new Map<string, JobCounts>();
+  const popJobs = getObject(root, "pop_jobs");
+
+  if (!popJobs) {
+    return result;
+  }
+
+  for (const assignment of popJobs.assignments) {
+    if (!isPdxObject(assignment.value)) {
+      continue;
+    }
+
+    const job = assignment.value;
+    const planetId = getString(job, "planet");
+
+    if (!planetId) {
+      continue;
+    }
+
+    const workforce = numberFromField(job, "workforce");
+
+    if (workforce < 0) {
+      continue;
+    }
+
+    const maxWorkforce = numberFromField(job, "max_workforce");
+
+    if (maxWorkforce <= 0) {
+      continue;
+    }
+
+    const open = Math.max(0, Math.round(maxWorkforce - workforce));
+
+    if (open <= 0) {
+      continue;
+    }
+
+    const counts = result.get(planetId) ?? { ruler: 0, specialist: 0, worker: 0 };
+    const category = jobCategory(getString(job, "type") ?? "");
+
+    if (category === "ruler") {
+      counts.ruler += open;
+    } else if (category === "specialist") {
+      counts.specialist += open;
+    } else if (category === "worker") {
+      counts.worker += open;
+    }
+
+    result.set(planetId, counts);
+  }
+
+  return result;
+}
+
+type JobCategory = "ruler" | "specialist" | "worker" | "other";
+
+const RULER_JOB_TYPES = new Set<string>([
+  "politician",
+  "colonist",
+  "ruler_unemployment",
+  "primitive_noble",
+  "noble",
+  "high_priest",
+  "manager",
+  "executive",
+  "death_priest",
+]);
+
+const SPECIALIST_JOB_TYPES = new Set<string>([
+  "artisan",
+  "foundry",
+  "fabricator",
+  "healthcare",
+  "entertainer",
+  "bureaucrat",
+  "enforcer",
+  "biologist",
+  "physicist",
+  "engineer",
+  "manufactorium_specialist",
+  "roboticist",
+  "replicator",
+  "identity_designer",
+  "trader",
+  "coordinator",
+  "logistics_drone",
+  "spawning_drone",
+  "bath_attendant",
+  "squire",
+  "calculator_biologist",
+  "calculator_engineer",
+  "calculator_physicist",
+  "primitive_researcher",
+  "primitive_bureaucrat",
+  "primitive_priest",
+  "primitive_hive_synapse_drone",
+  "primitive_hive_spawning_drone",
+  "primitive_hive_cerebellum_drone",
+  "fe_acolyte_artisan",
+  "fe_hedonist",
+  "specialist_unemployment",
+  "complex_drone_unemployment",
+  "neural_chip",
+  "priest",
+  "doctor",
+  "scholar",
+  "telepath",
+  "psi_corps",
+  "researcher",
+  "metallurgist",
+  "culture_worker",
+  "merchant",
+  "manager_drone",
+]);
+
+const WORKER_JOB_TYPES = new Set<string>([
+  "farmer",
+  "miner",
+  "technician",
+  "clerk",
+  "soldier",
+  "peasant",
+  "peasant_lithoid",
+  "hunter_gatherer",
+  "hunter_gatherer_lithoid",
+  "agri_drone",
+  "mining_drone",
+  "technician_drone",
+  "hive_sustenance_drone",
+  "hive_sustenance_drone_lithoid",
+  "hive_basic_agri_drone",
+  "hive_basic_agri_drone_lithoid",
+  "warrior_drone",
+  "patrol_drone",
+  "maintenance_drone",
+  "slave_toiler",
+  "slave_orderly",
+  "criminal",
+  "livestock",
+  "livestock_lithoid",
+  "livestock_infernal",
+  "organic_battery",
+  "organic_exhibit",
+  "bio_trophy",
+  "fe_maintenance_bot",
+  "fe_guardian_bot",
+  "primitive_farmer",
+  "primitive_miner",
+  "primitive_warrior",
+  "primitive_laborer",
+  "primitive_technician",
+  "primitive_hive_factory_drone",
+  "primitive_hive_miner",
+  "primitive_hive_warrior",
+  "worker_unemployment",
+  "simple_drone_unemployment",
+  "wilderness_maintenance_drone",
+  "pre_sapient",
+  "pre_sapient_nascent",
+  "xeno_zoo_animal",
+  "xeno_zoo_animal_nascent",
+  "xeno_zoo_animal_lithoid",
+  "xeno_zoo_animal_lithoid_nascent",
+  "xeno_zoo_beast",
+  "xeno_zoo_beast_nascent",
+  "xeno_zoo_beast_lithoid",
+  "xeno_zoo_beast_lithoid_nascent",
+  "menial_drone",
+]);
+
+function jobCategory(type: string): JobCategory {
+  if (RULER_JOB_TYPES.has(type)) {
+    return "ruler";
+  }
+
+  if (SPECIALIST_JOB_TYPES.has(type)) {
+    return "specialist";
+  }
+
+  if (WORKER_JOB_TYPES.has(type)) {
+    return "worker";
+  }
+
+  return "other";
+}
+
+function isInhabitedPlanet(planet: PdxObject): boolean {
+  const popGroups = getFirst(planet, "pop_groups");
+
+  if (isPdxObject(popGroups) && popGroups.values.length > 0) {
+    return true;
+  }
+
+  if (numberFromField(planet, "num_sapient_pops") > 0) {
+    return true;
+  }
+
+  if (getAssignments(planet, "pop").length > 0) {
+    return true;
+  }
+
+  return false;
+}
+
+function planetPopulation(planet: PdxObject): number {
+  const sapient = numberFromField(planet, "num_sapient_pops");
+
+  if (sapient > 0) {
+    return sapient;
+  }
+
+  const employable = numberFromField(planet, "employable_pops");
+
+  if (employable > 0) {
+    return employable;
+  }
+
+  const popGroups = getFirst(planet, "pop_groups");
+
+  if (isPdxObject(popGroups)) {
+    return popGroups.values.length + popGroups.assignments.length;
+  }
+
+  return getAssignments(planet, "pop").length;
+}
+
+function planetAmenities(planet: PdxObject): number {
+  const free = numericValue(getFirst(planet, "free_amenities"));
+
+  if (free !== undefined) {
+    return free;
+  }
+
+  const total = numericValue(getFirst(planet, "amenities")) ?? 0;
+  const usage = numericValue(getFirst(planet, "amenities_usage")) ?? 0;
+  return total - usage;
+}
+
+function resolveName(value: PdxValue | undefined): string {
+  if (value === undefined) {
+    return "";
+  }
+
   if (typeof value === "string") {
     return value;
   }
 
-  if (!value) {
-    return undefined;
+  const key = getString(value, "key");
+
+  if (!key) {
+    return "";
   }
 
-  for (const key of ["name", "text", "key", "value"]) {
-    const candidate = getString(value, key);
+  if (key === "PLANET_NAME_FORMAT" || key === "SUBPLANET_NAME_FORMAT") {
+    const variables = getObject(value, "variables");
+    const parts = variables ? extractFormatVariableParts(variables) : [];
 
-    if (candidate) {
-      return candidate;
+    if (parts.length > 0) {
+      return parts.join(" ");
     }
   }
 
-  const primitiveValues = value.values.filter((item): item is string => typeof item === "string");
-  return primitiveValues.length > 0 ? primitiveValues.join(" ") : undefined;
+  return key;
 }
 
-function isInterestingCountry(
-  country: PdxObject,
-  empireName: string,
-  colonies: number,
-  systems: number,
-  fleets: number,
-  pops: number,
-): boolean {
-  if (empireName || colonies > 0 || systems > 0 || fleets > 0 || pops > 0) {
-    return true;
+function extractFormatVariableParts(variables: PdxObject): string[] {
+  const parts: string[] = [];
+
+  for (const value of variables.values) {
+    if (!isPdxObject(value)) {
+      continue;
+    }
+
+    const valueRef = getFirst(value, "value");
+    const resolved = resolveName(valueRef);
+
+    if (resolved) {
+      parts.push(resolved);
+    }
   }
 
-  return getObject(country, "resources") !== undefined || getObject(country, "owned_planets") !== undefined;
+  return parts;
+}
+
+function humanizePlanetClass(className: string): string {
+  if (!className) {
+    return "";
+  }
+
+  const trimmed = className.startsWith("pc_") ? className.slice(3) : className;
+
+  return trimmed
+    .split("_")
+    .filter((word) => word.length > 0)
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(" ");
+}
+
+function numberFromField(object: PdxObject | undefined, key: string): number {
+  const value = numericValue(getFirst(object, key));
+  return value ?? 0;
+}
+
+function capitalPlanetName(
+  planetEntries: readonly PlanetEntry[],
+  capitalId: string,
+): string | undefined {
+  if (!capitalId) {
+    return undefined;
+  }
+
+  for (const entry of planetEntries) {
+    if (entry.id === capitalId) {
+      return resolveName(getFirst(entry.planet, "name"));
+    }
+  }
+
+  return undefined;
 }
 
 function dateFromFilename(fileName: string): string {
@@ -422,12 +662,9 @@ function dateFromFilename(fileName: string): string {
   return match?.[1] ?? "";
 }
 
-function increment(map: Map<string, number>, key: string, amount: number): void {
-  map.set(key, (map.get(key) ?? 0) + amount);
-}
-
-function round(value: number): number {
-  return Math.round((value + Number.EPSILON) * 100) / 100;
+function round(value: number, decimals = 2): number {
+  const factor = 10 ** decimals;
+  return Math.round((value + Number.EPSILON) * factor) / factor;
 }
 
 function csvCell(value: string | number | boolean): string {

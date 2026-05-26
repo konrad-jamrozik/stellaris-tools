@@ -1,12 +1,13 @@
 #!/usr/bin/env node
 import { promises as fs } from "node:fs";
 import path from "node:path";
-import { analyzeInput, rowsToCsv, type AnalyzerOptions } from "./saveAnalyzer.js";
+import { analyzeSaveFile, rowsToCsv } from "./saveAnalyzer.js";
 
-interface CliOptions extends AnalyzerOptions {
+interface CliOptions {
   inputPath?: string;
   outputPath?: string;
-  help?: boolean;
+  includeBom: boolean;
+  help: boolean;
 }
 
 async function main(): Promise<void> {
@@ -17,25 +18,30 @@ async function main(): Promise<void> {
     process.exit(options.help ? 0 : 1);
   }
 
-  const outputPath = options.outputPath ?? (await defaultOutputPath(options.inputPath));
-  const result = await analyzeInput(options.inputPath, options);
-  const csv = rowsToCsv(result.rows, undefined, options.includeBom ?? true);
+  const stat = await fs.stat(options.inputPath);
+
+  if (stat.isDirectory()) {
+    throw new Error(
+      `${options.inputPath} is a directory. This tool only analyzes one .sav file at a time.`,
+    );
+  }
+
+  const outputPath = options.outputPath ?? defaultOutputPath(options.inputPath);
+  const analysis = await analyzeSaveFile(options.inputPath);
+  const csv = rowsToCsv(analysis.rows, undefined, options.includeBom);
 
   await fs.writeFile(outputPath, csv, "utf8");
 
-  for (const warning of result.warnings) {
-    console.warn(`Warning: ${warning}`);
-  }
-
-  console.log(`Analyzed ${result.analyzedFiles.length} save file(s).`);
-  console.log(`Wrote ${result.rows.length} row(s) to ${outputPath}.`);
+  console.log(`Save: ${analysis.save_name}`);
+  console.log(`Date: ${analysis.game_date}`);
+  console.log(`Player empire: ${analysis.empire_name || "(unnamed)"} (country ${analysis.player_country_id})`);
+  console.log(`Wrote ${analysis.rows.length} planet row(s) to ${outputPath}.`);
 }
 
 function parseArgs(args: string[]): CliOptions {
   const options: CliOptions = {
-    recursive: true,
-    includeAllCountries: false,
     includeBom: true,
+    help: false,
   };
 
   for (let index = 0; index < args.length; index += 1) {
@@ -50,15 +56,6 @@ function parseArgs(args: string[]): CliOptions {
       case "--output":
         options.outputPath = requireValue(args, (index += 1), arg);
         break;
-      case "--recursive":
-        options.recursive = true;
-        break;
-      case "--no-recursive":
-        options.recursive = false;
-        break;
-      case "--include-all-countries":
-        options.includeAllCountries = true;
-        break;
       case "--no-bom":
         options.includeBom = false;
         break;
@@ -68,7 +65,7 @@ function parseArgs(args: string[]): CliOptions {
         }
 
         if (options.inputPath) {
-          throw new Error(`Unexpected extra argument ${arg}`);
+          throw new Error(`Unexpected extra argument ${arg}. Only one .sav file may be analyzed at a time.`);
         }
 
         options.inputPath = arg;
@@ -89,32 +86,25 @@ function requireValue(args: string[], index: number, option: string): string {
   return value;
 }
 
-async function defaultOutputPath(inputPath: string): Promise<string> {
-  const stat = await fs.stat(inputPath);
-
-  if (stat.isFile()) {
-    return `${path.basename(inputPath, path.extname(inputPath))}.csv`;
-  }
-
-  return "stellaris-save-analysis.csv";
+function defaultOutputPath(inputPath: string): string {
+  return `${path.basename(inputPath, path.extname(inputPath))}.csv`;
 }
 
 function printUsage(): void {
   console.log(`Stellaris Save Analyzer
 
 Usage:
-  stellaris-save-analyzer <save-file-or-directory> [options]
+  stellaris-save-analyzer <save-file> [options]
+
+Analyzes a single Stellaris .sav file and writes one CSV row per colonized
+planet owned by the player's empire.
 
 Options:
-  -o, --output <file>          CSV file to write. Defaults to the current directory.
-  --recursive                 Search directories recursively for .sav files (default).
-  --no-recursive              Only read .sav files directly inside the input directory.
-  --include-all-countries     Include event/internal countries that would otherwise be skipped.
-  --no-bom                    Do not prefix the CSV with a UTF-8 BOM for Excel.
-  -h, --help                  Show this help.
+  -o, --output <file>          CSV file to write. Defaults to <save-name>.csv.
+  --no-bom                     Do not prefix the CSV with a UTF-8 BOM for Excel.
+  -h, --help                   Show this help.
 
-Examples:
-  stellaris-save-analyzer "C:\\Users\\spawa\\OneDrive\\Documents\\Paradox Interactive\\Stellaris\\save games" -o stellaris.csv
+Example:
   stellaris-save-analyzer "C:\\Users\\spawa\\OneDrive\\Documents\\Paradox Interactive\\Stellaris\\save games\\imperiumofman2_1094588472\\2273.06.16.sav"
 `);
 }
