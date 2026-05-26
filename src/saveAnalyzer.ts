@@ -26,7 +26,6 @@ export interface PlanetRow {
   robots: number;
   stability: number;
   crime: number;
-  happiness: number;
   amenities: number;
   free_ruler_jobs: number;
   free_specialist_jobs: number;
@@ -55,7 +54,6 @@ export const CSV_COLUMNS: readonly (keyof PlanetRow)[] = [
   "robots",
   "stability",
   "crime",
-  "happiness",
   "amenities",
   "free_ruler_jobs",
   "free_specialist_jobs",
@@ -98,7 +96,6 @@ export function analyzeGamestate(gamestate: string, saveFile: string): SaveAnaly
 
   const planetToSector = buildPlanetToSectorMap(root);
   const sectorsContainer = getObject(root, "sectors");
-  const happinessByPlanet = aggregateHappinessByPlanet(root);
   const popsByPlanet = aggregatePopsByPlanet(root);
   const jobsByPlanet = aggregateJobsByPlanet(root);
   const planetEntries = collectPlanetEntries(root);
@@ -140,7 +137,6 @@ export function analyzeGamestate(gamestate: string, saveFile: string): SaveAnaly
       robots: pops?.robots ?? 0,
       stability: round(numberFromField(planet, "stability"), 2),
       crime: round(numberFromField(planet, "crime"), 2),
-      happiness: round((happinessByPlanet.get(planetId) ?? 0) * 100, 1),
       amenities: round(planetAmenities(planet), 1),
       free_ruler_jobs: jobs?.ruler ?? 0,
       free_specialist_jobs: jobs?.specialist ?? 0,
@@ -300,51 +296,6 @@ function buildPlanetToSectorMap(root: PdxObject): Map<string, string> {
   }
 
   return planetToSector;
-}
-
-function aggregateHappinessByPlanet(root: PdxObject): Map<string, number> {
-  const totals = new Map<string, number>();
-  const sizes = new Map<string, number>();
-  const popGroups = getObject(root, "pop_groups");
-
-  if (!popGroups) {
-    return new Map();
-  }
-
-  for (const assignment of popGroups.assignments) {
-    if (!isPdxObject(assignment.value)) {
-      continue;
-    }
-
-    const popGroup = assignment.value;
-    const planetId = getString(popGroup, "planet");
-
-    if (!planetId) {
-      continue;
-    }
-
-    const size = numberFromField(popGroup, "size");
-
-    if (size <= 0) {
-      continue;
-    }
-
-    const happiness = numberFromField(popGroup, "happiness");
-    totals.set(planetId, (totals.get(planetId) ?? 0) + size * happiness);
-    sizes.set(planetId, (sizes.get(planetId) ?? 0) + size);
-  }
-
-  const averages = new Map<string, number>();
-
-  for (const [planetId, weightedTotal] of totals) {
-    const size = sizes.get(planetId) ?? 0;
-
-    if (size > 0) {
-      averages.set(planetId, weightedTotal / size);
-    }
-  }
-
-  return averages;
 }
 
 interface PopCounts {

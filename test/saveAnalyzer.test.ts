@@ -100,13 +100,13 @@ species_db={
   }
 }
 pop_groups={
-  1001={ planet=10 size=100 happiness=0.8 key={ species=1 category="specialist" } }
-  1002={ planet=10 size=40 happiness=0.6 key={ species=2 category="slave" } }
-  1003={ planet=10 size=30 happiness=0.7 key={ species=1 category="civilian" } }
-  1004={ planet=10 size=20 happiness=0.5 key={ species=1 category="worker_unemployment" } }
-  1005={ planet=10 size=10 happiness=0.5 key={ species=3 category="worker" } }
-  1006={ planet=11 size=50 happiness=0.9 key={ species=3 category="robot_servant" } }
-  1007={ planet=50 size=80 happiness=0.5 key={ species=2 category="worker" } }
+  1001={ planet=10 size=100 key={ species=1 category="specialist" } }
+  1002={ planet=10 size=40 key={ species=2 category="slave" } }
+  1003={ planet=10 size=30 key={ species=1 category="civilian" } }
+  1004={ planet=10 size=20 key={ species=1 category="worker_unemployment" } }
+  1005={ planet=10 size=10 key={ species=3 category="worker" } }
+  1006={ planet=11 size=50 key={ species=3 category="robot_servant" } }
+  1007={ planet=50 size=80 key={ species=2 category="worker" } }
 }
 pop_jobs={
   1={ type="farmer" planet=10 workforce=80 max_workforce=100 bonus_workforce=10 workforce_limit=100 }
@@ -149,8 +149,6 @@ test("computes per-planet stats correctly", () => {
   assert.equal(earth.total_population, 200);
   assert.equal(earth.stability, 72.5);
   assert.equal(earth.crime, 4);
-  // weighted happiness = 140 / 200 = 0.7 -> 70
-  assert.equal(earth.happiness, 70);
   assert.equal(earth.amenities, 100);
   assert.equal(earth.jobless, 20);
   assert.equal(earth.civilians, 30);
