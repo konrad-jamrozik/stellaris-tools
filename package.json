@@ -1,0 +1,39 @@
+{
+  "name": "stellaris-save-analyzer",
+  "version": "0.1.0",
+  "description": "Analyze Stellaris save files and export Excel-ready CSV summaries",
+  "main": "dist/src/index.js",
+  "scripts": {
+    "test": "npm run build && node --test dist/test/**/*.test.js",
+    "build": "tsc -p tsconfig.json",
+    "start": "tsx src/cli.ts"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/konrad-jamrozik/stellaris-tools.git"
+  },
+  "keywords": [
+    "stellaris",
+    "paradox",
+    "csv",
+    "typescript"
+  ],
+  "author": "",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/konrad-jamrozik/stellaris-tools/issues"
+  },
+  "homepage": "https://github.com/konrad-jamrozik/stellaris-tools#readme",
+  "dependencies": {
+    "jszip": "^3.10.1"
+  },
+  "devDependencies": {
+    "@types/node": "^25.9.1",
+    "tsx": "^4.22.3",
+    "typescript": "^6.0.3"
+  },
+  "type": "module",
+  "bin": {
+    "stellaris-save-analyzer": "dist/src/cli.js"
+  }
+}
