@@ -57,6 +57,17 @@ Planet health stats:
 | `crime` | Planet crime (0-100) |
 | `amenities` | Net free amenities (supply minus usage) |
 
+Building stats:
+
+| Column | Description |
+| --- | --- |
+| `medical center` | 1 if the planet has a medical center or any of its upgrades, empty otherwise |
+| `clone vats` | 1 if the planet has clone vats or any of its upgrades, empty otherwise |
+| `robot assembly plant` | 1 if the planet has a robot assembly plant or any of its upgrades, empty otherwise |
+| `augmentation center` | 1 if the planet has an augmentation center or any of its upgrades, empty otherwise |
+| `luxury residences` | Number of luxury residences on the planet |
+| `precinct houses` | Number of precinct houses, or any of their upgrades, on the planet |
+
 Pop stats:
 
 | Column | Description |
