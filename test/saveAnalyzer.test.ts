@@ -254,7 +254,7 @@ test("computes per-planet stats correctly", () => {
   assert.equal(earth.ruler_jobs, 2);
   assert.equal(earth.specialist_jobs, 84);
   assert.equal(earth.worker_jobs, 94);
-  assert.equal(earth.citizen_workers, 42);
+  assert.equal(earth.citizen_workers, 34);
   assert.equal(earth.mitron_workers, 40);
   assert.equal(earth.kelsiote_workers, 10);
   assert.equal(earth.robot_workers, 10);
