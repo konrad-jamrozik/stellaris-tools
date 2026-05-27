@@ -15,12 +15,13 @@ const README_COLUMNS = [
   "stability",
   "crime",
   "amenities",
+  "precinct houses",
   "medical center",
+  "holo-theatres",
+  "luxury residences",
   "clone vats",
   "robot assembly plant",
   "augmentation center",
-  "luxury residences",
-  "precinct houses",
   "total_population",
   "citizens",
   "slaves",
@@ -114,15 +115,7 @@ planets={
       amenities=500
       amenities_usage=400
       free_amenities=100
-      buildings={
-        0={ type="building_hospital" }
-        1={ type="building_clone_vats" }
-        2={ type="building_machine_assembly_complex" }
-        3={ type="building_augmentation_center" }
-        4={ type="building_luxury_residence" }
-        5={ type="building_paradise_dome" }
-        6={ type="building_hall_judgment" }
-      }
+      buildings_cache={ 2001 2002 2003 2004 2005 2006 2007 2008 2009 }
     }
     11={
       name={ key="Mars" literal=yes }
@@ -183,6 +176,17 @@ pop_groups={
   1007={ planet=50 size=80 key={ species=2 category="worker" } }
   1008={ planet=10 size=20 key={ species=1 category="worker" } }
 }
+buildings={
+  2001={ type="building_medical_1" position=1 }
+  2002={ type="building_clone_vats" position=2 }
+  2003={ type="building_machine_assembly_complex" position=3 }
+  2004={ type="building_augmentation_center" position=4 }
+  2005={ type="building_luxury_residence" position=5 }
+  2006={ type="building_paradise_dome" position=6 }
+  2007={ type="building_hall_judgment" position=7 }
+  2008={ type="building_holo_theatres" position=8 }
+  2009={ type="building_hyper_entertainment_forum" position=9 }
+}
 pop_jobs={
   1={ type="farmer" planet=10 workforce=80 max_workforce=100 bonus_workforce=10 workforce_limit=100 pop_groups={ { pop_group=1008 amount=20 } { pop_group=1002 amount=40 } { pop_group=1004 amount=10 } { pop_group=1005 amount=10 } } }
   2={ type="researcher" planet=10 workforce=20 max_workforce=30 bonus_workforce=1 workforce_limit=30 pop_groups={ { pop_group=1001 amount=20 } } }
@@ -239,6 +243,7 @@ test("computes per-planet stats correctly", () => {
   assert.equal(earth["clone vats"], 1);
   assert.equal(earth["robot assembly plant"], 1);
   assert.equal(earth["augmentation center"], 1);
+  assert.equal(earth["holo-theatres"], 2);
   assert.equal(earth["luxury residences"], 2);
   assert.equal(earth["precinct houses"], 1);
   assert.equal(earth.jobless, 20);

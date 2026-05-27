@@ -61,12 +61,13 @@ Building stats:
 
 | Column | Description |
 | --- | --- |
+| `precinct houses` | Number of precinct houses, or any of their upgrades, on the planet |
 | `medical center` | 1 if the planet has a medical center or any of its upgrades, empty otherwise |
+| `holo-theatres` | Number of holo-theatres, or any of their upgrades, on the planet |
+| `luxury residences` | Number of luxury residences on the planet |
 | `clone vats` | 1 if the planet has clone vats or any of its upgrades, empty otherwise |
 | `robot assembly plant` | 1 if the planet has a robot assembly plant or any of its upgrades, empty otherwise |
 | `augmentation center` | 1 if the planet has an augmentation center or any of its upgrades, empty otherwise |
-| `luxury residences` | Number of luxury residences on the planet |
-| `precinct houses` | Number of precinct houses, or any of their upgrades, on the planet |
 
 Pop stats:
 

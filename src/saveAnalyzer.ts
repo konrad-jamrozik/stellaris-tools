@@ -21,12 +21,13 @@ export interface PlanetRow {
   stability: number;
   crime: number;
   amenities: number;
+  "precinct houses": number;
   "medical center": 1 | "";
+  "holo-theatres": number;
+  "luxury residences": number;
   "clone vats": 1 | "";
   "robot assembly plant": 1 | "";
   "augmentation center": 1 | "";
-  "luxury residences": number;
-  "precinct houses": number;
   total_population: number;
   citizens: number;
   slaves: number;
@@ -88,12 +89,13 @@ export const CSV_COLUMNS: readonly (keyof PlanetRow)[] = [
   "stability",
   "crime",
   "amenities",
+  "precinct houses",
   "medical center",
+  "holo-theatres",
+  "luxury residences",
   "clone vats",
   "robot assembly plant",
   "augmentation center",
-  "luxury residences",
-  "precinct houses",
   "total_population",
   "citizens",
   "slaves",
@@ -141,6 +143,8 @@ export const CSV_COLUMNS: readonly (keyof PlanetRow)[] = [
 const NO_OWNER = new Set(["", "4294967295", "-1"]);
 
 const MEDICAL_CENTER_BUILDINGS = new Set([
+  "building_medical_1",
+  "building_medical_2",
   "building_clinic",
   "building_hospital",
   "building_gene_clinic",
@@ -161,6 +165,11 @@ const ROBOT_ASSEMBLY_BUILDINGS = new Set([
 
 const AUGMENTATION_CENTER_BUILDINGS = new Set([
   "building_augmentation_center",
+]);
+
+const HOLO_THEATRE_BUILDINGS = new Set([
+  "building_holo_theatres",
+  "building_hyper_entertainment_forum",
 ]);
 
 const LUXURY_RESIDENCE_BUILDINGS = new Set([
@@ -238,7 +247,7 @@ export function analyzeGamestate(gamestate: string, saveFile: string): SaveAnaly
     const pops = popsByPlanet.get(planetId);
     const popJobOccupancy = popJobOccupancyByPlanet.get(planetId);
     const planetClass = getString(planet, "planet_class") ?? "";
-    const buildings = planetBuildings(planet);
+    const buildings = planetBuildings(planet, root);
 
     rows.push({
       planet_name: resolveName(getFirst(planet, "name")),
@@ -248,12 +257,13 @@ export function analyzeGamestate(gamestate: string, saveFile: string): SaveAnaly
       stability: round(numberFromField(planet, "stability"), 2),
       crime: round(numberFromField(planet, "crime"), 2),
       amenities: round(planetAmenities(planet), 1),
+      "precinct houses": countBuildings(buildings, PRECINCT_HOUSE_BUILDINGS),
       "medical center": hasBuilding(buildings, MEDICAL_CENTER_BUILDINGS) ? 1 : "",
+      "holo-theatres": countBuildings(buildings, HOLO_THEATRE_BUILDINGS),
+      "luxury residences": countBuildings(buildings, LUXURY_RESIDENCE_BUILDINGS),
       "clone vats": hasBuilding(buildings, CLONE_VATS_BUILDINGS) ? 1 : "",
       "robot assembly plant": hasBuilding(buildings, ROBOT_ASSEMBLY_BUILDINGS) ? 1 : "",
       "augmentation center": hasBuilding(buildings, AUGMENTATION_CENTER_BUILDINGS) ? 1 : "",
-      "luxury residences": countBuildings(buildings, LUXURY_RESIDENCE_BUILDINGS),
-      "precinct houses": countBuildings(buildings, PRECINCT_HOUSE_BUILDINGS),
       total_population: planetPopulation(planet),
       citizens: pops?.citizens ?? 0,
       slaves: pops?.slaves ?? 0,
@@ -1309,7 +1319,7 @@ function planetAmenities(planet: PdxObject): number {
   return total - usage;
 }
 
-function planetBuildings(planet: PdxObject): string[] {
+function planetBuildings(planet: PdxObject, root: PdxObject): string[] {
   const result: string[] = [];
 
   for (const building of getAssignments(planet, "building")) {
@@ -1329,6 +1339,19 @@ function planetBuildings(planet: PdxObject): string[] {
 
     for (const assignment of buildings.assignments) {
       addBuildingValue(result, assignment.value);
+    }
+  }
+
+  const globalBuildings = getObject(root, "buildings");
+  const buildingsCache = getObject(planet, "buildings_cache");
+
+  if (globalBuildings && buildingsCache) {
+    for (const value of buildingsCache.values) {
+      if (typeof value !== "string") {
+        continue;
+      }
+
+      addBuildingValue(result, getObject(globalBuildings, value));
     }
   }
 
