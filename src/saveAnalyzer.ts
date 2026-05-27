@@ -21,10 +21,10 @@ export interface PlanetRow {
   stability: number;
   crime: number;
   amenities: number;
-  "precinct houses": number;
+  "precinct houses": number | "";
   "medical center": 1 | "";
-  "holo-theatres": number;
-  "luxury residences": number;
+  "holo-theatres": number | "";
+  "luxury residences": number | "";
   "clone vats": 1 | "";
   "robot assembly plant": 1 | "";
   "augmentation center": 1 | "";
@@ -1379,8 +1379,9 @@ function hasBuilding(buildings: readonly string[], expected: ReadonlySet<string>
   return buildings.some((building) => expected.has(building));
 }
 
-function countBuildings(buildings: readonly string[], expected: ReadonlySet<string>): number {
-  return buildings.reduce((count, building) => count + (expected.has(building) ? 1 : 0), 0);
+function countBuildings(buildings: readonly string[], expected: ReadonlySet<string>): number | "" {
+  const count = buildings.reduce((total, building) => total + (expected.has(building) ? 1 : 0), 0);
+  return count > 0 ? count : "";
 }
 
 function resolveName(value: PdxValue | undefined): string {

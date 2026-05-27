@@ -286,6 +286,20 @@ test("computes per-planet stats correctly", () => {
   assert.equal(earth.free_worker_jobs, 28);
 });
 
+test("leaves missing building columns empty", () => {
+  const analysis = analyzeGamestate(GAMESTATE, "2273.06.16.sav");
+  const mars = analysis.rows.find((row) => row.planet_name === "Mars");
+
+  assert.ok(mars);
+  assert.equal(mars["precinct houses"], "");
+  assert.equal(mars["medical center"], "");
+  assert.equal(mars["holo-theatres"], "");
+  assert.equal(mars["luxury residences"], "");
+  assert.equal(mars["clone vats"], "");
+  assert.equal(mars["robot assembly plant"], "");
+  assert.equal(mars["augmentation center"], "");
+});
+
 test("renders a CSV with the expected header and number of rows", () => {
   const analysis = analyzeGamestate(GAMESTATE, "2273.06.16.sav");
   const csv = rowsToCsv(analysis.rows);
