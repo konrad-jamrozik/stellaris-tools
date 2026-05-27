@@ -5,7 +5,7 @@ import path from "node:path";
 import test from "node:test";
 import JSZip from "jszip";
 import { findNewestSaveFile } from "../src/cli.js";
-import { CSV_COLUMNS, analyzeGamestate, analyzeSaveFile, rowsToCsv } from "../src/saveAnalyzer.js";
+import { CSV_COLUMNS, CSV_HEADERS, analyzeGamestate, analyzeSaveFile, rowsToCsv } from "../src/saveAnalyzer.js";
 
 const README_COLUMNS = [
   "planet_name",
@@ -306,7 +306,7 @@ test("renders a CSV with the expected header and number of rows", () => {
   const lines = csv.replace(/^\uFEFF/, "").trim().split("\r\n");
 
   assert.deepEqual(CSV_COLUMNS, README_COLUMNS);
-  assert.equal(lines[0], README_COLUMNS.join(","));
+  assert.equal(lines[0], CSV_HEADERS.join(","));
   assert.equal(lines.length, 1 + analysis.rows.length);
   assert.match(csv, /Earth/);
 });

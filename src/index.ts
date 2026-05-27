@@ -3,6 +3,8 @@ export {
   analyzeSaveFile,
   rowsToCsv,
   CSV_COLUMNS,
+  CSV_HEADERS,
+  csvColumnAlias,
   type PlanetRow,
   type SaveAnalysis,
 } from "./saveAnalyzer.js";

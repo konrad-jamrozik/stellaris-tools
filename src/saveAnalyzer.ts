@@ -140,6 +140,24 @@ export const CSV_COLUMNS: readonly (keyof PlanetRow)[] = [
   "free_farmer_jobs",
 ] as const;
 
+export function csvColumnAlias(column: keyof PlanetRow): string {
+  if (column.endsWith("_workers")) {
+    return `${column.slice(0, -"_workers".length)}_W`;
+  }
+
+  if (column.startsWith("free_") && column.endsWith("_jobs")) {
+    return `${column.slice("free_".length, -"_jobs".length)}_FJ`;
+  }
+
+  if (column.endsWith("_jobs")) {
+    return `${column.slice(0, -"_jobs".length)}_J`;
+  }
+
+  return column;
+}
+
+export const CSV_HEADERS: readonly string[] = CSV_COLUMNS.map(csvColumnAlias);
+
 const NO_OWNER = new Set(["", "4294967295", "-1"]);
 
 const MEDICAL_CENTER_BUILDINGS = new Set([
@@ -347,7 +365,7 @@ export function rowsToCsv(
   includeBom = true,
 ): string {
   const csv = [
-    columns.map(csvCell).join(","),
+    columns.map((column) => csvCell(csvColumnAlias(column))).join(","),
     ...rows.map((row) => columns.map((column) => csvCell(row[column] ?? "")).join(",")),
   ].join("\r\n");
 
