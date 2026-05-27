@@ -115,13 +115,13 @@ planets={
       amenities_usage=400
       free_amenities=100
       buildings={
-        0={ type="building_clinic" }
+        0={ type="building_hospital" }
         1={ type="building_clone_vats" }
-        2={ type="building_robot_assembly_plant" }
+        2={ type="building_machine_assembly_complex" }
         3={ type="building_augmentation_center" }
-        4={ type="building_luxury_residences" }
-        5={ type="building_luxury_residences" }
-        6={ type="building_precinct_houses" }
+        4={ type="building_luxury_residence" }
+        5={ type="building_paradise_dome" }
+        6={ type="building_hall_judgment" }
       }
     }
     11={

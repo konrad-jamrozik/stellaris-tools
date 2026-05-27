@@ -143,6 +143,7 @@ const NO_OWNER = new Set(["", "4294967295", "-1"]);
 const MEDICAL_CENTER_BUILDINGS = new Set([
   "building_clinic",
   "building_hospital",
+  "building_gene_clinic",
   "building_cyto_revitalization_center",
   "building_medical_center",
 ]);
@@ -153,8 +154,9 @@ const CLONE_VATS_BUILDINGS = new Set([
 
 const ROBOT_ASSEMBLY_BUILDINGS = new Set([
   "building_robot_assembly_plant",
-  "building_robotics_assembly_plant",
   "building_machine_assembly_plant",
+  "building_machine_assembly_complex",
+  "building_robotics_assembly_plant",
 ]);
 
 const AUGMENTATION_CENTER_BUILDINGS = new Set([
