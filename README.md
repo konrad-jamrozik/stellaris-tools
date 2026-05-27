@@ -13,19 +13,18 @@ npm run build
 
 ## Usage
 
-The tool analyzes exactly one save at a time:
+Analyze latest save in `C:\Users\spawa\OneDrive\Documents\Paradox Interactive\Stellaris\save games\` and write out the analysis to `./save_analysis_<save_file_name>.sav`:
 
 ```bash
-npm start -- "C:\Users\spawa\OneDrive\Documents\Paradox Interactive\Stellaris\save games\imperiumofman2_1094588472\2273.06.16.sav" -o stellaris.csv
+node dist/src/cli.js
 ```
 
-After building, the compiled CLI can also be run directly:
+Explicit arguments:
 
 ```bash
-node dist/src/cli.js "C:\Users\spawa\OneDrive\Documents\Paradox Interactive\Stellaris\save games\imperiumofman2_1094588472\2273.06.16.sav" -o stellaris.csv
+node dist/src/cli.js "C:\Users\spawa\OneDrive\Documents\Paradox Interactive\Stellaris\save games\imperiumofman2_1094588472\2273.06.17.sav" -o save_analysis.csv
 ```
 
-If no `--output` is given, the CSV is written next to the working directory using the save's base name (e.g. `2273.06.16.csv`).
 
 ## Options
 
@@ -41,37 +40,99 @@ The CSV uses commas, CRLF line endings, quoted fields where needed, and a UTF-8 
 
 Each row is a planet owned by the player's empire. The capital is sorted first, then planets are grouped by sector name.
 
+Base planet info:
+
 | Column | Description |
 | --- | --- |
 | `planet_name` | Planet name (localized when literal, otherwise the localization key) |
 | `sector_name` | Sector the planet's system belongs to, or empty |
-| `planet_size` | Planet size in tiles |
 | `planet_type` | Planet class without the `pc_` prefix, capitalized (e.g. `Continental`, `Gaia`) |
+| `planet_size` | Planet size in tiles |
+
+Planet health stats:
+
+| Column | Description |
+| --- | --- |
+| `stability` | Planet stability (0-100) |
+| `crime` | Planet crime (0-100) |
+| `amenities` | Net free amenities (supply minus usage) |
+
+Pop stats:
+
+| Column | Description |
+| --- | --- |
 | `total_population` | Number of sapient pops on the planet |
-| `jobless` | Pops assigned to unemployment jobs |
-| `civilians` | Pops assigned to the civilian job |
 | `citizens` | Non-mechanical, non-slave pops in citizen categories |
 | `slaves` | Pops in the slave category |
 | `robots` | Mechanical pops, based on robot categories or mechanical species |
-| `rulers` | Pops currently assigned to ruler-tier jobs |
-| `specialists` | Pops currently assigned to specialist-tier jobs |
-| `workers` | Pops currently assigned to worker-tier jobs |
 | `citizen_workers` | Non-mechanical citizen pops currently assigned to worker-tier jobs |
 | `mitron_workers` | Mitron pops currently assigned to worker-tier jobs |
 | `kelsiote_workers` | Kelsiote pops currently assigned to worker-tier jobs |
 | `robot_workers` | Mechanical pops currently assigned to worker-tier jobs |
-| `stability` | Planet stability (0-100) |
-| `crime` | Planet crime (0-100) |
-| `amenities` | Net free amenities (supply minus usage) |
-| `consumer_good_jobs` | Pops currently assigned to artisan jobs |
-| `free_consumer_goods_jobs` | Unfilled workforce for artisan jobs |
-| `alloy_jobs` | Pops currently assigned to alloy-producing jobs |
-| `free_alloy_jobs` | Unfilled workforce for alloy-producing jobs |
+| `jobless` | Pops assigned to unemployment jobs |
+| `civilians` | Pops assigned to the civilian job |
+
+Job stratum stats:
+
+| Column | Description |
+| --- | --- |
+| `ruler_jobs` | Pops currently assigned to ruler-tier jobs |
 | `free_ruler_jobs` | Unfilled workforce for ruler-tier jobs |
+| `specialist_jobs` | Pops currently assigned to specialist-tier jobs |
 | `free_specialist_jobs` | Unfilled workforce for specialist-tier jobs |
+| `worker_jobs` | Pops currently assigned to worker-tier jobs |
 | `free_worker_jobs` | Unfilled workforce for worker-tier jobs |
 
+Specialist job stats, producers:
+
+| Column | Description |
+| --- | --- |
+| `researcher_jobs` | Pops currently assigned to researcher jobs: physicists, biologists, engineers, archaeo-engineers  |
+| `free_researcher_jobs` | Unfilled workforce for researcher jobs |
+| `unity_jobs` | Pops currently assigned to unity jobs: bureaucrats, numistic priests |
+| `free_unity_jobs` | Unfilled workforce for unity jobs |
+| `cgds_jobs` | Pops currently assigned to artisan jobs |
+| `free_cgds_jobs` | Unfilled workforce for artisan jobs |
+| `alloy_jobs` | Pops currently assigned to alloy-producing jobs |
+| `free_alloy_jobs` | Unfilled workforce for alloy-producing jobs |
+
+Specialist job stats, supporting:
+
+| Column | Description |
+| --- | --- |
+| `enforcer_jobs` | Pops currently assigned to enforcer jobs |
+| `free_enforcer_jobs` | Unfilled workforce for enforcer jobs |
+| `medical_worker_jobs` | Pops currently assigned to medical worker jobs |
+| `free_medical_worker_jobs` | Unfilled workforce for medical worker jobs |
+| `entertainer_jobs` | Pops currently assigned to entertainer jobs |
+| `free_entertainer_jobs` | Unfilled workforce for entertainer jobs |
+| `roboticist_jobs` | Pops currently assigned to roboticist jobs |
+| `free_roboticist_jobs` | Unfilled workforce for roboticist jobs |
+| `soldier_jobs` | Pops currently assigned to soldier jobs |
+| `free_soldier_jobs` | Unfilled workforce for soldier jobs |
+| `augmentor_jobs` | Pops currently assigned to augmentor jobs |
+| `free_augmentor_jobs` | Unfilled workforce for augmentor jobs |
+
+Worker job stats:
+
+| Column | Description |
+| --- | --- |
+| `technician_jobs` | Pops currently assigned to technician jobs |
+| `free_technician_jobs` | Unfilled workforce for technician jobs |
+| `miner_jobs` | Pops currently assigned to miner jobs |
+| `free_miner_jobs` | Unfilled workforce for miner jobs |
+| `farmer_jobs` | Pops currently assigned to farmer jobs |
+| `free_farmer_jobs` | Unfilled workforce for farmer jobs |
+
+
 ## Development
+
+
+Run in dev mode (first builds with `tsx`):
+
+```bash
+npm start -- "C:\Users\spawa\OneDrive\Documents\Paradox Interactive\Stellaris\save games\imperiumofman2_1094588472\2273.06.16.sav" -o save_analysis.csv
+```
 
 ```bash
 npm test

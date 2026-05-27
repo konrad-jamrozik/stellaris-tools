@@ -173,8 +173,8 @@ test("computes per-planet stats correctly", () => {
   assert.equal(earth.mitron_workers, 40);
   assert.equal(earth.kelsiote_workers, 10);
   assert.equal(earth.robot_workers, 10);
-  assert.equal(earth.consumer_good_jobs, 12);
-  assert.equal(earth.free_consumer_goods_jobs, 8);
+  assert.equal(earth.cgds_jobs, 12);
+  assert.equal(earth.free_cgds_jobs, 8);
   assert.equal(earth.alloy_jobs, 10);
   assert.equal(earth.free_alloy_jobs, 5);
   // Free jobs are based on max workforce minus current workforce for each tier.

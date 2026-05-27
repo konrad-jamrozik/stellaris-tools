@@ -34,8 +34,8 @@ export interface PlanetRow {
   stability: number;
   crime: number;
   amenities: number;
-  consumer_good_jobs: number;
-  free_consumer_goods_jobs: number;
+  cgds_jobs: number;
+  free_cgds_jobs: number;
   alloy_jobs: number;
   free_alloy_jobs: number;
   free_ruler_jobs: number;
@@ -73,8 +73,8 @@ export const CSV_COLUMNS: readonly (keyof PlanetRow)[] = [
   "stability",
   "crime",
   "amenities",
-  "consumer_good_jobs",
-  "free_consumer_goods_jobs",
+  "cgds_jobs",
+  "free_cgds_jobs",
   "alloy_jobs",
   "free_alloy_jobs",
   "free_ruler_jobs",
@@ -169,8 +169,8 @@ export function analyzeGamestate(gamestate: string, saveFile: string): SaveAnaly
       stability: round(numberFromField(planet, "stability"), 2),
       crime: round(numberFromField(planet, "crime"), 2),
       amenities: round(planetAmenities(planet), 1),
-      consumer_good_jobs: popJobOccupancy?.consumerGoodJobs ?? 0,
-      free_consumer_goods_jobs: jobs?.consumerGoods ?? 0,
+      cgds_jobs: popJobOccupancy?.cgdsJobs ?? 0,
+      free_cgds_jobs: jobs?.cgds ?? 0,
       alloy_jobs: popJobOccupancy?.alloyJobs ?? 0,
       free_alloy_jobs: jobs?.alloys ?? 0,
       free_ruler_jobs: jobs?.ruler ?? 0,
@@ -407,7 +407,7 @@ interface PopJobOccupancyCounts {
   mitronWorkers: number;
   kelsioteWorkers: number;
   robotWorkers: number;
-  consumerGoodJobs: number;
+  cgdsJobs: number;
   alloyJobs: number;
 }
 
@@ -475,8 +475,8 @@ function aggregatePopJobOccupancyByPlanet(root: PdxObject): Map<string, PopJobOc
       addWorkerBreakdown(counts, occupiedPopAssignments(job), popGroupsById);
     }
 
-    if (CONSUMER_GOOD_JOB_TYPES.has(type)) {
-      counts.consumerGoodJobs += amount;
+    if (CGDS_JOB_TYPES.has(type)) {
+      counts.cgdsJobs += amount;
     }
 
     if (ALLOY_JOB_TYPES.has(type)) {
@@ -500,7 +500,7 @@ function emptyPopJobOccupancyCounts(): PopJobOccupancyCounts {
     mitronWorkers: 0,
     kelsioteWorkers: 0,
     robotWorkers: 0,
-    consumerGoodJobs: 0,
+    cgdsJobs: 0,
     alloyJobs: 0,
   };
 }
@@ -631,7 +631,7 @@ interface JobCounts {
   ruler: number;
   specialist: number;
   worker: number;
-  consumerGoods: number;
+  cgds: number;
   alloys: number;
 }
 
@@ -673,8 +673,8 @@ function aggregateJobsByPlanet(root: PdxObject): Map<string, JobCounts> {
       counts.worker += open;
     }
 
-    if (CONSUMER_GOOD_JOB_TYPES.has(type)) {
-      counts.consumerGoods += open;
+    if (CGDS_JOB_TYPES.has(type)) {
+      counts.cgds += open;
     }
 
     if (ALLOY_JOB_TYPES.has(type)) {
@@ -692,7 +692,7 @@ function emptyJobCounts(): JobCounts {
     ruler: 0,
     specialist: 0,
     worker: 0,
-    consumerGoods: 0,
+    cgds: 0,
     alloys: 0,
   };
 }
@@ -842,7 +842,7 @@ const CITIZEN_POP_CATEGORIES = new Set<string>([
   "worker_unemployment",
 ]);
 
-const CONSUMER_GOOD_JOB_TYPES = new Set<string>([
+const CGDS_JOB_TYPES = new Set<string>([
   "artisan",
 ]);
 
