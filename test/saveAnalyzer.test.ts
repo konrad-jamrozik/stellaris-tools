@@ -1,10 +1,69 @@
 import assert from "node:assert/strict";
-import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, rm, utimes, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import test from "node:test";
 import JSZip from "jszip";
+import { findNewestSaveFile } from "../src/cli.js";
 import { CSV_COLUMNS, analyzeGamestate, analyzeSaveFile, rowsToCsv } from "../src/saveAnalyzer.js";
+
+const README_COLUMNS = [
+  "planet_name",
+  "sector_name",
+  "planet_type",
+  "planet_size",
+  "stability",
+  "crime",
+  "amenities",
+  "medical center",
+  "clone vats",
+  "robot assembly plant",
+  "augmentation center",
+  "luxury residences",
+  "precinct houses",
+  "total_population",
+  "citizens",
+  "slaves",
+  "robots",
+  "citizen_workers",
+  "mitron_workers",
+  "kelsiote_workers",
+  "robot_workers",
+  "jobless",
+  "civilians",
+  "ruler_jobs",
+  "free_ruler_jobs",
+  "specialist_jobs",
+  "free_specialist_jobs",
+  "worker_jobs",
+  "free_worker_jobs",
+  "researcher_jobs",
+  "free_researcher_jobs",
+  "unity_jobs",
+  "free_unity_jobs",
+  "cgds_jobs",
+  "free_cgds_jobs",
+  "alloy_jobs",
+  "free_alloy_jobs",
+  "enforcer_jobs",
+  "free_enforcer_jobs",
+  "medical_worker_jobs",
+  "free_medical_worker_jobs",
+  "entertainer_jobs",
+  "free_entertainer_jobs",
+  "roboticist_jobs",
+  "free_roboticist_jobs",
+  "soldier_jobs",
+  "free_soldier_jobs",
+  "augmentor_jobs",
+  "free_augmentor_jobs",
+  "technician_jobs",
+  "free_technician_jobs",
+  "miner_jobs",
+  "free_miner_jobs",
+  "farmer_jobs",
+  "free_farmer_jobs",
+] as const;
 
 const GAMESTATE = `
 date="2273.06.16"
@@ -55,6 +114,15 @@ planets={
       amenities=500
       amenities_usage=400
       free_amenities=100
+      buildings={
+        0={ type="building_clinic" }
+        1={ type="building_clone_vats" }
+        2={ type="building_robot_assembly_plant" }
+        3={ type="building_augmentation_center" }
+        4={ type="building_luxury_residences" }
+        5={ type="building_luxury_residences" }
+        6={ type="building_precinct_houses" }
+      }
     }
     11={
       name={ key="Mars" literal=yes }
@@ -128,6 +196,12 @@ pop_jobs={
   10={ type="artisan" planet=10 workforce=12 max_workforce=20 bonus_workforce=1 workforce_limit=20 pop_groups={ { pop_group=1001 amount=12 } } }
   11={ type="foundry" planet=10 workforce=7 max_workforce=10 bonus_workforce=1 workforce_limit=10 pop_groups={ { pop_group=1001 amount=7 } } }
   12={ type="manufactorium_specialist" planet=10 workforce=3 max_workforce=5 bonus_workforce=1 workforce_limit=5 pop_groups={ { pop_group=1001 amount=3 } } }
+  13={ type="enforcer" planet=10 workforce=4 max_workforce=6 bonus_workforce=1 workforce_limit=6 pop_groups={ { pop_group=1001 amount=4 } } }
+  14={ type="healthcare" planet=10 workforce=5 max_workforce=8 bonus_workforce=1 workforce_limit=8 pop_groups={ { pop_group=1001 amount=5 } } }
+  15={ type="roboticist" planet=10 workforce=6 max_workforce=9 bonus_workforce=1 workforce_limit=9 pop_groups={ { pop_group=1001 amount=6 } } }
+  16={ type="soldier" planet=10 workforce=8 max_workforce=10 bonus_workforce=1 workforce_limit=10 pop_groups={ { pop_group=1008 amount=8 } } }
+  17={ type="augmentor" planet=10 workforce=9 max_workforce=11 bonus_workforce=1 workforce_limit=11 pop_groups={ { pop_group=1001 amount=9 } } }
+  18={ type="technician" planet=10 workforce=14 max_workforce=20 bonus_workforce=1 workforce_limit=20 pop_groups={ { pop_group=1008 amount=14 } } }
 }
 `;
 
@@ -161,26 +235,50 @@ test("computes per-planet stats correctly", () => {
   assert.equal(earth.stability, 72.5);
   assert.equal(earth.crime, 4);
   assert.equal(earth.amenities, 100);
+  assert.equal(earth["medical center"], 1);
+  assert.equal(earth["clone vats"], 1);
+  assert.equal(earth["robot assembly plant"], 1);
+  assert.equal(earth["augmentation center"], 1);
+  assert.equal(earth["luxury residences"], 2);
+  assert.equal(earth["precinct houses"], 1);
   assert.equal(earth.jobless, 20);
   assert.equal(earth.civilians, 30);
   assert.equal(earth.citizens, 120);
   assert.equal(earth.slaves, 70);
   assert.equal(earth.robots, 10);
-  assert.equal(earth.rulers, 2);
-  assert.equal(earth.specialists, 52);
-  assert.equal(earth.workers, 80);
-  assert.equal(earth.citizen_workers, 20);
+  assert.equal(earth.ruler_jobs, 2);
+  assert.equal(earth.specialist_jobs, 76);
+  assert.equal(earth.worker_jobs, 102);
+  assert.equal(earth.citizen_workers, 42);
   assert.equal(earth.mitron_workers, 40);
   assert.equal(earth.kelsiote_workers, 10);
   assert.equal(earth.robot_workers, 10);
+  assert.equal(earth.researcher_jobs, 20);
+  assert.equal(earth.free_researcher_jobs, 10);
+  assert.equal(earth.unity_jobs, 10);
+  assert.equal(earth.free_unity_jobs, 0);
   assert.equal(earth.cgds_jobs, 12);
   assert.equal(earth.free_cgds_jobs, 8);
   assert.equal(earth.alloy_jobs, 10);
   assert.equal(earth.free_alloy_jobs, 5);
+  assert.equal(earth.enforcer_jobs, 4);
+  assert.equal(earth.free_enforcer_jobs, 2);
+  assert.equal(earth.medical_worker_jobs, 5);
+  assert.equal(earth.free_medical_worker_jobs, 3);
+  assert.equal(earth.roboticist_jobs, 6);
+  assert.equal(earth.free_roboticist_jobs, 3);
+  assert.equal(earth.soldier_jobs, 8);
+  assert.equal(earth.free_soldier_jobs, 2);
+  assert.equal(earth.augmentor_jobs, 9);
+  assert.equal(earth.free_augmentor_jobs, 2);
+  assert.equal(earth.technician_jobs, 14);
+  assert.equal(earth.free_technician_jobs, 6);
+  assert.equal(earth.farmer_jobs, 80);
+  assert.equal(earth.free_farmer_jobs, 20);
   // Free jobs are based on max workforce minus current workforce for each tier.
   assert.equal(earth.free_ruler_jobs, 3);
-  assert.equal(earth.free_specialist_jobs, 23);
-  assert.equal(earth.free_worker_jobs, 20);
+  assert.equal(earth.free_specialist_jobs, 33);
+  assert.equal(earth.free_worker_jobs, 28);
 });
 
 test("renders a CSV with the expected header and number of rows", () => {
@@ -188,7 +286,8 @@ test("renders a CSV with the expected header and number of rows", () => {
   const csv = rowsToCsv(analysis.rows);
   const lines = csv.replace(/^\uFEFF/, "").trim().split("\r\n");
 
-  assert.equal(lines[0], CSV_COLUMNS.join(","));
+  assert.deepEqual(CSV_COLUMNS, README_COLUMNS);
+  assert.equal(lines[0], README_COLUMNS.join(","));
   assert.equal(lines.length, 1 + analysis.rows.length);
   assert.match(csv, /Earth/);
 });
@@ -209,6 +308,31 @@ test("analyzeSaveFile reads a zipped gamestate", async () => {
 
     assert.equal(analysis.rows.length, 2);
     assert.equal(analysis.empire_name, "Imperium of Man");
+  } finally {
+    await rm(directory, { recursive: true, force: true });
+  }
+});
+
+test("findNewestSaveFile returns the newest nested .sav", async () => {
+  const directory = await mkdtemp(path.join(os.tmpdir(), "stellaris-save-games-"));
+
+  try {
+    const olderCampaign = path.join(directory, "older_campaign");
+    const newerCampaign = path.join(directory, "newer_campaign");
+    const olderSave = path.join(olderCampaign, "2273.06.16.sav");
+    const newerSave = path.join(newerCampaign, "2273.06.17.sav");
+    const ignoredText = path.join(newerCampaign, "notes.txt");
+
+    await mkdir(olderCampaign);
+    await mkdir(newerCampaign);
+    await writeFile(olderSave, "older");
+    await writeFile(newerSave, "newer");
+    await writeFile(ignoredText, "not a save");
+
+    await utimes(olderSave, new Date("2024-01-01T00:00:00Z"), new Date("2024-01-01T00:00:00Z"));
+    await utimes(newerSave, new Date("2024-01-02T00:00:00Z"), new Date("2024-01-02T00:00:00Z"));
+
+    assert.equal(await findNewestSaveFile(directory), newerSave);
   } finally {
     await rm(directory, { recursive: true, force: true });
   }

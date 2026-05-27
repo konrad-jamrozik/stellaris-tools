@@ -16,31 +16,59 @@ import {
 export interface PlanetRow {
   planet_name: string;
   sector_name: string;
-  planet_size: number;
   planet_type: string;
+  planet_size: number;
+  stability: number;
+  crime: number;
+  amenities: number;
+  "medical center": 1 | "";
+  "clone vats": 1 | "";
+  "robot assembly plant": 1 | "";
+  "augmentation center": 1 | "";
+  "luxury residences": number;
+  "precinct houses": number;
   total_population: number;
-  jobless: number;
-  civilians: number;
   citizens: number;
   slaves: number;
   robots: number;
-  rulers: number;
-  specialists: number;
-  workers: number;
   citizen_workers: number;
   mitron_workers: number;
   kelsiote_workers: number;
   robot_workers: number;
-  stability: number;
-  crime: number;
-  amenities: number;
+  jobless: number;
+  civilians: number;
+  ruler_jobs: number;
+  free_ruler_jobs: number;
+  specialist_jobs: number;
+  free_specialist_jobs: number;
+  worker_jobs: number;
+  free_worker_jobs: number;
+  researcher_jobs: number;
+  free_researcher_jobs: number;
+  unity_jobs: number;
+  free_unity_jobs: number;
   cgds_jobs: number;
   free_cgds_jobs: number;
   alloy_jobs: number;
   free_alloy_jobs: number;
-  free_ruler_jobs: number;
-  free_specialist_jobs: number;
-  free_worker_jobs: number;
+  enforcer_jobs: number;
+  free_enforcer_jobs: number;
+  medical_worker_jobs: number;
+  free_medical_worker_jobs: number;
+  entertainer_jobs: number;
+  free_entertainer_jobs: number;
+  roboticist_jobs: number;
+  free_roboticist_jobs: number;
+  soldier_jobs: number;
+  free_soldier_jobs: number;
+  augmentor_jobs: number;
+  free_augmentor_jobs: number;
+  technician_jobs: number;
+  free_technician_jobs: number;
+  miner_jobs: number;
+  free_miner_jobs: number;
+  farmer_jobs: number;
+  free_farmer_jobs: number;
 }
 
 export interface SaveAnalysis {
@@ -55,34 +83,95 @@ export interface SaveAnalysis {
 export const CSV_COLUMNS: readonly (keyof PlanetRow)[] = [
   "planet_name",
   "sector_name",
-  "planet_size",
   "planet_type",
+  "planet_size",
+  "stability",
+  "crime",
+  "amenities",
+  "medical center",
+  "clone vats",
+  "robot assembly plant",
+  "augmentation center",
+  "luxury residences",
+  "precinct houses",
   "total_population",
-  "jobless",
-  "civilians",
   "citizens",
   "slaves",
   "robots",
-  "rulers",
-  "specialists",
-  "workers",
   "citizen_workers",
   "mitron_workers",
   "kelsiote_workers",
   "robot_workers",
-  "stability",
-  "crime",
-  "amenities",
+  "jobless",
+  "civilians",
+  "ruler_jobs",
+  "free_ruler_jobs",
+  "specialist_jobs",
+  "free_specialist_jobs",
+  "worker_jobs",
+  "free_worker_jobs",
+  "researcher_jobs",
+  "free_researcher_jobs",
+  "unity_jobs",
+  "free_unity_jobs",
   "cgds_jobs",
   "free_cgds_jobs",
   "alloy_jobs",
   "free_alloy_jobs",
-  "free_ruler_jobs",
-  "free_specialist_jobs",
-  "free_worker_jobs",
+  "enforcer_jobs",
+  "free_enforcer_jobs",
+  "medical_worker_jobs",
+  "free_medical_worker_jobs",
+  "entertainer_jobs",
+  "free_entertainer_jobs",
+  "roboticist_jobs",
+  "free_roboticist_jobs",
+  "soldier_jobs",
+  "free_soldier_jobs",
+  "augmentor_jobs",
+  "free_augmentor_jobs",
+  "technician_jobs",
+  "free_technician_jobs",
+  "miner_jobs",
+  "free_miner_jobs",
+  "farmer_jobs",
+  "free_farmer_jobs",
 ] as const;
 
 const NO_OWNER = new Set(["", "4294967295", "-1"]);
+
+const MEDICAL_CENTER_BUILDINGS = new Set([
+  "building_clinic",
+  "building_hospital",
+  "building_cyto_revitalization_center",
+  "building_medical_center",
+]);
+
+const CLONE_VATS_BUILDINGS = new Set([
+  "building_clone_vats",
+]);
+
+const ROBOT_ASSEMBLY_BUILDINGS = new Set([
+  "building_robot_assembly_plant",
+  "building_robotics_assembly_plant",
+  "building_machine_assembly_plant",
+]);
+
+const AUGMENTATION_CENTER_BUILDINGS = new Set([
+  "building_augmentation_center",
+]);
+
+const LUXURY_RESIDENCE_BUILDINGS = new Set([
+  "building_luxury_residence",
+  "building_luxury_residences",
+  "building_paradise_dome",
+]);
+
+const PRECINCT_HOUSE_BUILDINGS = new Set([
+  "building_precinct_house",
+  "building_precinct_houses",
+  "building_hall_judgment",
+]);
 
 export async function analyzeSaveFile(saveFile: string): Promise<SaveAnalysis> {
   const stat = await fs.stat(saveFile);
@@ -147,35 +236,64 @@ export function analyzeGamestate(gamestate: string, saveFile: string): SaveAnaly
     const pops = popsByPlanet.get(planetId);
     const popJobOccupancy = popJobOccupancyByPlanet.get(planetId);
     const planetClass = getString(planet, "planet_class") ?? "";
+    const buildings = planetBuildings(planet);
 
     rows.push({
       planet_name: resolveName(getFirst(planet, "name")),
       sector_name: sectorName,
-      planet_size: numberFromField(planet, "planet_size"),
       planet_type: humanizePlanetClass(planetClass),
+      planet_size: numberFromField(planet, "planet_size"),
+      stability: round(numberFromField(planet, "stability"), 2),
+      crime: round(numberFromField(planet, "crime"), 2),
+      amenities: round(planetAmenities(planet), 1),
+      "medical center": hasBuilding(buildings, MEDICAL_CENTER_BUILDINGS) ? 1 : "",
+      "clone vats": hasBuilding(buildings, CLONE_VATS_BUILDINGS) ? 1 : "",
+      "robot assembly plant": hasBuilding(buildings, ROBOT_ASSEMBLY_BUILDINGS) ? 1 : "",
+      "augmentation center": hasBuilding(buildings, AUGMENTATION_CENTER_BUILDINGS) ? 1 : "",
+      "luxury residences": countBuildings(buildings, LUXURY_RESIDENCE_BUILDINGS),
+      "precinct houses": countBuildings(buildings, PRECINCT_HOUSE_BUILDINGS),
       total_population: planetPopulation(planet),
-      jobless: popJobOccupancy?.jobless ?? 0,
-      civilians: popJobOccupancy?.civilians ?? 0,
       citizens: pops?.citizens ?? 0,
       slaves: pops?.slaves ?? 0,
       robots: pops?.robots ?? 0,
-      rulers: popJobOccupancy?.rulers ?? 0,
-      specialists: popJobOccupancy?.specialists ?? 0,
-      workers: popJobOccupancy?.workers ?? 0,
       citizen_workers: popJobOccupancy?.citizenWorkers ?? 0,
       mitron_workers: popJobOccupancy?.mitronWorkers ?? 0,
       kelsiote_workers: popJobOccupancy?.kelsioteWorkers ?? 0,
       robot_workers: popJobOccupancy?.robotWorkers ?? 0,
-      stability: round(numberFromField(planet, "stability"), 2),
-      crime: round(numberFromField(planet, "crime"), 2),
-      amenities: round(planetAmenities(planet), 1),
+      jobless: popJobOccupancy?.jobless ?? 0,
+      civilians: popJobOccupancy?.civilians ?? 0,
+      ruler_jobs: popJobOccupancy?.rulerJobs ?? 0,
+      free_ruler_jobs: jobs?.ruler ?? 0,
+      specialist_jobs: popJobOccupancy?.specialistJobs ?? 0,
+      free_specialist_jobs: jobs?.specialist ?? 0,
+      worker_jobs: popJobOccupancy?.workerJobs ?? 0,
+      free_worker_jobs: jobs?.worker ?? 0,
+      researcher_jobs: popJobOccupancy?.researcherJobs ?? 0,
+      free_researcher_jobs: jobs?.researcher ?? 0,
+      unity_jobs: popJobOccupancy?.unityJobs ?? 0,
+      free_unity_jobs: jobs?.unity ?? 0,
       cgds_jobs: popJobOccupancy?.cgdsJobs ?? 0,
       free_cgds_jobs: jobs?.cgds ?? 0,
       alloy_jobs: popJobOccupancy?.alloyJobs ?? 0,
       free_alloy_jobs: jobs?.alloys ?? 0,
-      free_ruler_jobs: jobs?.ruler ?? 0,
-      free_specialist_jobs: jobs?.specialist ?? 0,
-      free_worker_jobs: jobs?.worker ?? 0,
+      enforcer_jobs: popJobOccupancy?.enforcerJobs ?? 0,
+      free_enforcer_jobs: jobs?.enforcer ?? 0,
+      medical_worker_jobs: popJobOccupancy?.medicalWorkerJobs ?? 0,
+      free_medical_worker_jobs: jobs?.medicalWorker ?? 0,
+      entertainer_jobs: popJobOccupancy?.entertainerJobs ?? 0,
+      free_entertainer_jobs: jobs?.entertainer ?? 0,
+      roboticist_jobs: popJobOccupancy?.roboticistJobs ?? 0,
+      free_roboticist_jobs: jobs?.roboticist ?? 0,
+      soldier_jobs: popJobOccupancy?.soldierJobs ?? 0,
+      free_soldier_jobs: jobs?.soldier ?? 0,
+      augmentor_jobs: popJobOccupancy?.augmentorJobs ?? 0,
+      free_augmentor_jobs: jobs?.augmentor ?? 0,
+      technician_jobs: popJobOccupancy?.technicianJobs ?? 0,
+      free_technician_jobs: jobs?.technician ?? 0,
+      miner_jobs: popJobOccupancy?.minerJobs ?? 0,
+      free_miner_jobs: jobs?.miner ?? 0,
+      farmer_jobs: popJobOccupancy?.farmerJobs ?? 0,
+      free_farmer_jobs: jobs?.farmer ?? 0,
     });
   }
 
@@ -400,15 +518,26 @@ function emptyPopCounts(): PopCounts {
 interface PopJobOccupancyCounts {
   jobless: number;
   civilians: number;
-  rulers: number;
-  specialists: number;
-  workers: number;
+  rulerJobs: number;
+  specialistJobs: number;
+  workerJobs: number;
   citizenWorkers: number;
   mitronWorkers: number;
   kelsioteWorkers: number;
   robotWorkers: number;
+  researcherJobs: number;
+  unityJobs: number;
   cgdsJobs: number;
   alloyJobs: number;
+  enforcerJobs: number;
+  medicalWorkerJobs: number;
+  entertainerJobs: number;
+  roboticistJobs: number;
+  soldierJobs: number;
+  augmentorJobs: number;
+  technicianJobs: number;
+  minerJobs: number;
+  farmerJobs: number;
 }
 
 interface PopGroupInfo {
@@ -467,13 +596,15 @@ function aggregatePopJobOccupancyByPlanet(root: PdxObject): Map<string, PopJobOc
     }
 
     if (jobTier === "ruler") {
-      counts.rulers += amount;
+      counts.rulerJobs += amount;
     } else if (jobTier === "specialist") {
-      counts.specialists += amount;
+      counts.specialistJobs += amount;
     } else if (jobTier === "worker") {
-      counts.workers += amount;
+      counts.workerJobs += amount;
       addWorkerBreakdown(counts, occupiedPopAssignments(job), popGroupsById);
     }
+
+    addSpecificJobOccupancy(counts, type, amount);
 
     if (CGDS_JOB_TYPES.has(type)) {
       counts.cgdsJobs += amount;
@@ -493,16 +624,73 @@ function emptyPopJobOccupancyCounts(): PopJobOccupancyCounts {
   return {
     jobless: 0,
     civilians: 0,
-    rulers: 0,
-    specialists: 0,
-    workers: 0,
+    rulerJobs: 0,
+    specialistJobs: 0,
+    workerJobs: 0,
     citizenWorkers: 0,
     mitronWorkers: 0,
     kelsioteWorkers: 0,
     robotWorkers: 0,
+    researcherJobs: 0,
+    unityJobs: 0,
     cgdsJobs: 0,
     alloyJobs: 0,
+    enforcerJobs: 0,
+    medicalWorkerJobs: 0,
+    entertainerJobs: 0,
+    roboticistJobs: 0,
+    soldierJobs: 0,
+    augmentorJobs: 0,
+    technicianJobs: 0,
+    minerJobs: 0,
+    farmerJobs: 0,
   };
+}
+
+function addSpecificJobOccupancy(counts: PopJobOccupancyCounts, type: string, amount: number): void {
+  if (RESEARCHER_JOB_TYPES.has(type)) {
+    counts.researcherJobs += amount;
+  }
+
+  if (UNITY_JOB_TYPES.has(type)) {
+    counts.unityJobs += amount;
+  }
+
+  if (ENFORCER_JOB_TYPES.has(type)) {
+    counts.enforcerJobs += amount;
+  }
+
+  if (MEDICAL_WORKER_JOB_TYPES.has(type)) {
+    counts.medicalWorkerJobs += amount;
+  }
+
+  if (ENTERTAINER_JOB_TYPES.has(type)) {
+    counts.entertainerJobs += amount;
+  }
+
+  if (ROBOTICIST_JOB_TYPES.has(type)) {
+    counts.roboticistJobs += amount;
+  }
+
+  if (SOLDIER_JOB_TYPES.has(type)) {
+    counts.soldierJobs += amount;
+  }
+
+  if (AUGMENTOR_JOB_TYPES.has(type)) {
+    counts.augmentorJobs += amount;
+  }
+
+  if (TECHNICIAN_JOB_TYPES.has(type)) {
+    counts.technicianJobs += amount;
+  }
+
+  if (MINER_JOB_TYPES.has(type)) {
+    counts.minerJobs += amount;
+  }
+
+  if (FARMER_JOB_TYPES.has(type)) {
+    counts.farmerJobs += amount;
+  }
 }
 
 function buildPopGroupInfoById(root: PdxObject): Map<string, PopGroupInfo> {
@@ -631,8 +819,19 @@ interface JobCounts {
   ruler: number;
   specialist: number;
   worker: number;
+  researcher: number;
+  unity: number;
   cgds: number;
   alloys: number;
+  enforcer: number;
+  medicalWorker: number;
+  entertainer: number;
+  roboticist: number;
+  soldier: number;
+  augmentor: number;
+  technician: number;
+  miner: number;
+  farmer: number;
 }
 
 function aggregateJobsByPlanet(root: PdxObject): Map<string, JobCounts> {
@@ -673,6 +872,8 @@ function aggregateJobsByPlanet(root: PdxObject): Map<string, JobCounts> {
       counts.worker += open;
     }
 
+    addSpecificOpenJobs(counts, type, open);
+
     if (CGDS_JOB_TYPES.has(type)) {
       counts.cgds += open;
     }
@@ -692,9 +893,66 @@ function emptyJobCounts(): JobCounts {
     ruler: 0,
     specialist: 0,
     worker: 0,
+    researcher: 0,
+    unity: 0,
     cgds: 0,
     alloys: 0,
+    enforcer: 0,
+    medicalWorker: 0,
+    entertainer: 0,
+    roboticist: 0,
+    soldier: 0,
+    augmentor: 0,
+    technician: 0,
+    miner: 0,
+    farmer: 0,
   };
+}
+
+function addSpecificOpenJobs(counts: JobCounts, type: string, open: number): void {
+  if (RESEARCHER_JOB_TYPES.has(type)) {
+    counts.researcher += open;
+  }
+
+  if (UNITY_JOB_TYPES.has(type)) {
+    counts.unity += open;
+  }
+
+  if (ENFORCER_JOB_TYPES.has(type)) {
+    counts.enforcer += open;
+  }
+
+  if (MEDICAL_WORKER_JOB_TYPES.has(type)) {
+    counts.medicalWorker += open;
+  }
+
+  if (ENTERTAINER_JOB_TYPES.has(type)) {
+    counts.entertainer += open;
+  }
+
+  if (ROBOTICIST_JOB_TYPES.has(type)) {
+    counts.roboticist += open;
+  }
+
+  if (SOLDIER_JOB_TYPES.has(type)) {
+    counts.soldier += open;
+  }
+
+  if (AUGMENTOR_JOB_TYPES.has(type)) {
+    counts.augmentor += open;
+  }
+
+  if (TECHNICIAN_JOB_TYPES.has(type)) {
+    counts.technician += open;
+  }
+
+  if (MINER_JOB_TYPES.has(type)) {
+    counts.miner += open;
+  }
+
+  if (FARMER_JOB_TYPES.has(type)) {
+    counts.farmer += open;
+  }
 }
 
 function openJobSlots(job: PdxObject): number {
@@ -773,6 +1031,11 @@ const SPECIALIST_JOB_TYPES = new Set<string>([
   "culture_worker",
   "merchant",
   "manager_drone",
+  "archaeoengineers",
+  "archaeo_engineer",
+  "augmentor",
+  "augmentation_drone",
+  "numistic_priest",
 ]);
 
 const WORKER_JOB_TYPES = new Set<string>([
@@ -852,6 +1115,74 @@ const ALLOY_JOB_TYPES = new Set<string>([
   "manufactorium_specialist",
   "metallurgist",
   "operator",
+]);
+
+const RESEARCHER_JOB_TYPES = new Set<string>([
+  "researcher",
+  "physicist",
+  "biologist",
+  "engineer",
+  "archaeoengineers",
+  "archaeo_engineer",
+  "calculator_physicist",
+  "calculator_biologist",
+  "calculator_engineer",
+  "primitive_researcher",
+]);
+
+const UNITY_JOB_TYPES = new Set<string>([
+  "bureaucrat",
+  "numistic_priest",
+]);
+
+const ENFORCER_JOB_TYPES = new Set<string>([
+  "enforcer",
+]);
+
+const MEDICAL_WORKER_JOB_TYPES = new Set<string>([
+  "healthcare",
+  "doctor",
+]);
+
+const ENTERTAINER_JOB_TYPES = new Set<string>([
+  "entertainer",
+]);
+
+const ROBOTICIST_JOB_TYPES = new Set<string>([
+  "roboticist",
+  "replicator",
+]);
+
+const SOLDIER_JOB_TYPES = new Set<string>([
+  "soldier",
+  "warrior_drone",
+]);
+
+const AUGMENTOR_JOB_TYPES = new Set<string>([
+  "augmentor",
+  "augmentation_drone",
+  "identity_designer",
+]);
+
+const TECHNICIAN_JOB_TYPES = new Set<string>([
+  "technician",
+  "technician_drone",
+  "primitive_technician",
+]);
+
+const MINER_JOB_TYPES = new Set<string>([
+  "miner",
+  "mining_drone",
+  "primitive_miner",
+  "primitive_hive_miner",
+]);
+
+const FARMER_JOB_TYPES = new Set<string>([
+  "farmer",
+  "agri_drone",
+  "hive_basic_agri_drone",
+  "hive_basic_agri_drone_lithoid",
+  "primitive_farmer",
 ]);
 
 const MECHANICAL_SPECIES_CLASSES = new Set<string>([
@@ -974,6 +1305,57 @@ function planetAmenities(planet: PdxObject): number {
   const total = numericValue(getFirst(planet, "amenities")) ?? 0;
   const usage = numericValue(getFirst(planet, "amenities_usage")) ?? 0;
   return total - usage;
+}
+
+function planetBuildings(planet: PdxObject): string[] {
+  const result: string[] = [];
+
+  for (const building of getAssignments(planet, "building")) {
+    addBuildingValue(result, building);
+  }
+
+  for (const building of getAssignments(planet, "building_construction")) {
+    addBuildingValue(result, building);
+  }
+
+  const buildings = getObject(planet, "buildings");
+
+  if (buildings) {
+    for (const value of buildings.values) {
+      addBuildingValue(result, value);
+    }
+
+    for (const assignment of buildings.assignments) {
+      addBuildingValue(result, assignment.value);
+    }
+  }
+
+  return result;
+}
+
+function addBuildingValue(result: string[], value: PdxValue | undefined): void {
+  if (typeof value === "string") {
+    result.push(value);
+    return;
+  }
+
+  if (!isPdxObject(value)) {
+    return;
+  }
+
+  const type = getString(value, "type") ?? getString(value, "building");
+
+  if (type) {
+    result.push(type);
+  }
+}
+
+function hasBuilding(buildings: readonly string[], expected: ReadonlySet<string>): boolean {
+  return buildings.some((building) => expected.has(building));
+}
+
+function countBuildings(buildings: readonly string[], expected: ReadonlySet<string>): number {
+  return buildings.reduce((count, building) => count + (expected.has(building) ? 1 : 0), 0);
 }
 
 function resolveName(value: PdxValue | undefined): string {
