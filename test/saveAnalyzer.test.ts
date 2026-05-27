@@ -252,8 +252,8 @@ test("computes per-planet stats correctly", () => {
   assert.equal(earth.slaves, 70);
   assert.equal(earth.robots, 10);
   assert.equal(earth.ruler_jobs, 2);
-  assert.equal(earth.specialist_jobs, 76);
-  assert.equal(earth.worker_jobs, 102);
+  assert.equal(earth.specialist_jobs, 84);
+  assert.equal(earth.worker_jobs, 94);
   assert.equal(earth.citizen_workers, 42);
   assert.equal(earth.mitron_workers, 40);
   assert.equal(earth.kelsiote_workers, 10);
@@ -282,8 +282,8 @@ test("computes per-planet stats correctly", () => {
   assert.equal(earth.free_farmer_jobs, 20);
   // Free jobs are based on max workforce minus current workforce for each tier.
   assert.equal(earth.free_ruler_jobs, 3);
-  assert.equal(earth.free_specialist_jobs, 33);
-  assert.equal(earth.free_worker_jobs, 28);
+  assert.equal(earth.free_specialist_jobs, 35);
+  assert.equal(earth.free_worker_jobs, 26);
 });
 
 test("leaves missing building columns empty", () => {

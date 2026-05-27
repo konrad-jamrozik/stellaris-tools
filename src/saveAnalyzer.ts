@@ -1066,6 +1066,8 @@ const SPECIALIST_JOB_TYPES = new Set<string>([
   "augmentor",
   "augmentation_drone",
   "numistic_priest",
+  "soldier",
+  "warrior_drone",
 ]);
 
 const WORKER_JOB_TYPES = new Set<string>([
@@ -1073,7 +1075,6 @@ const WORKER_JOB_TYPES = new Set<string>([
   "miner",
   "technician",
   "clerk",
-  "soldier",
   "peasant",
   "peasant_lithoid",
   "hunter_gatherer",
@@ -1085,7 +1086,6 @@ const WORKER_JOB_TYPES = new Set<string>([
   "hive_sustenance_drone_lithoid",
   "hive_basic_agri_drone",
   "hive_basic_agri_drone_lithoid",
-  "warrior_drone",
   "patrol_drone",
   "maintenance_drone",
   "slave_toiler",
