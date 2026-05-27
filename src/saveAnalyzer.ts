@@ -42,8 +42,6 @@ export interface PlanetRow {
   free_ruler_jobs: number;
   specialist_jobs: number;
   free_specialist_jobs: number;
-  worker_jobs: number;
-  free_worker_jobs: number;
   researcher_jobs: number;
   free_researcher_jobs: number;
   unity_jobs: number;
@@ -64,6 +62,8 @@ export interface PlanetRow {
   free_soldier_jobs: number;
   augmentor_jobs: number;
   free_augmentor_jobs: number;
+  worker_jobs: number;
+  free_worker_jobs: number;
   technician_jobs: number;
   free_technician_jobs: number;
   miner_jobs: number;
@@ -110,8 +110,6 @@ export const CSV_COLUMNS: readonly (keyof PlanetRow)[] = [
   "free_ruler_jobs",
   "specialist_jobs",
   "free_specialist_jobs",
-  "worker_jobs",
-  "free_worker_jobs",
   "researcher_jobs",
   "free_researcher_jobs",
   "unity_jobs",
@@ -132,6 +130,8 @@ export const CSV_COLUMNS: readonly (keyof PlanetRow)[] = [
   "free_soldier_jobs",
   "augmentor_jobs",
   "free_augmentor_jobs",
+  "worker_jobs",
+  "free_worker_jobs",
   "technician_jobs",
   "free_technician_jobs",
   "miner_jobs",
@@ -278,8 +278,6 @@ export function analyzeGamestate(gamestate: string, saveFile: string): SaveAnaly
       free_ruler_jobs: jobs?.ruler ?? 0,
       specialist_jobs: popJobOccupancy?.specialistJobs ?? 0,
       free_specialist_jobs: jobs?.specialist ?? 0,
-      worker_jobs: popJobOccupancy?.workerJobs ?? 0,
-      free_worker_jobs: jobs?.worker ?? 0,
       researcher_jobs: popJobOccupancy?.researcherJobs ?? 0,
       free_researcher_jobs: jobs?.researcher ?? 0,
       unity_jobs: popJobOccupancy?.unityJobs ?? 0,
@@ -300,6 +298,8 @@ export function analyzeGamestate(gamestate: string, saveFile: string): SaveAnaly
       free_soldier_jobs: jobs?.soldier ?? 0,
       augmentor_jobs: popJobOccupancy?.augmentorJobs ?? 0,
       free_augmentor_jobs: jobs?.augmentor ?? 0,
+      worker_jobs: popJobOccupancy?.workerJobs ?? 0,
+      free_worker_jobs: jobs?.worker ?? 0,
       technician_jobs: popJobOccupancy?.technicianJobs ?? 0,
       free_technician_jobs: jobs?.technician ?? 0,
       miner_jobs: popJobOccupancy?.minerJobs ?? 0,

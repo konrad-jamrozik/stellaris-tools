@@ -84,21 +84,19 @@ Pop stats:
 | `jobless` | Pops assigned to unemployment jobs |
 | `civilians` | Pops assigned to the civilian job |
 
-Job stratum stats:
+Ruler job stats:
 
 | Column | Description |
 | --- | --- |
 | `ruler_jobs` | Pops currently assigned to ruler-tier jobs |
 | `free_ruler_jobs` | Unfilled workforce for ruler-tier jobs |
-| `specialist_jobs` | Pops currently assigned to specialist-tier jobs |
-| `free_specialist_jobs` | Unfilled workforce for specialist-tier jobs |
-| `worker_jobs` | Pops currently assigned to worker-tier jobs |
-| `free_worker_jobs` | Unfilled workforce for worker-tier jobs |
 
 Specialist job stats, producers:
 
 | Column | Description |
 | --- | --- |
+| `specialist_jobs` | Pops currently assigned to specialist-tier jobs |
+| `free_specialist_jobs` | Unfilled workforce for specialist-tier jobs |
 | `researcher_jobs` | Pops currently assigned to researcher jobs: physicists, biologists, engineers, archaeo-engineers  |
 | `free_researcher_jobs` | Unfilled workforce for researcher jobs |
 | `unity_jobs` | Pops currently assigned to unity jobs: bureaucrats, numistic priests |
@@ -129,6 +127,8 @@ Worker job stats:
 
 | Column | Description |
 | --- | --- |
+| `worker_jobs` | Pops currently assigned to worker-tier jobs |
+| `free_worker_jobs` | Unfilled workforce for worker-tier jobs |
 | `technician_jobs` | Pops currently assigned to technician jobs |
 | `free_technician_jobs` | Unfilled workforce for technician jobs |
 | `miner_jobs` | Pops currently assigned to miner jobs |
