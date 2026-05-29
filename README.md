@@ -133,8 +133,8 @@ Worker job stats:
 | `free_technician_jobs` | technician_FJ | Unfilled workforce for technician jobs |
 | `miner_jobs` | miner_J | Pops currently assigned to miner jobs |
 | `free_miner_jobs` | miner_FJ | Unfilled workforce for miner jobs |
-| `farmer_jobs` | farmer_J | Pops currently assigned to farmer jobs |
-| `free_farmer_jobs` | farmer_FJ | Unfilled workforce for farmer jobs |
+| `farmer_jobs` | farmer_J | Pops currently assigned to farmer and food-related jobs, including gas extractors |
+| `free_farmer_jobs` | farmer_FJ | Unfilled workforce for farmer and food-related jobs |
 
 
 ## Development

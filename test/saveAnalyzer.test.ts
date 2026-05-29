@@ -206,6 +206,7 @@ pop_jobs={
   16={ type="soldier" planet=10 workforce=8 max_workforce=10 bonus_workforce=1 workforce_limit=10 pop_groups={ { pop_group=1008 amount=8 } } }
   17={ type="augmentor" planet=10 workforce=9 max_workforce=11 bonus_workforce=1 workforce_limit=11 pop_groups={ { pop_group=1001 amount=9 } } }
   18={ type="technician" planet=10 workforce=14 max_workforce=20 bonus_workforce=1 workforce_limit=20 pop_groups={ { pop_group=1008 amount=14 } } }
+  19={ type="gas_extractor" planet=10 workforce=5 max_workforce=8 bonus_workforce=1 workforce_limit=8 pop_groups={ { pop_group=1008 amount=5 } } }
 }
 `;
 
@@ -253,8 +254,8 @@ test("computes per-planet stats correctly", () => {
   assert.equal(earth.robots, 10);
   assert.equal(earth.ruler_jobs, 2);
   assert.equal(earth.specialist_jobs, 84);
-  assert.equal(earth.worker_jobs, 94);
-  assert.equal(earth.citizen_workers, 34);
+  assert.equal(earth.worker_jobs, 99);
+  assert.equal(earth.citizen_workers, 39);
   assert.equal(earth.mitron_workers, 40);
   assert.equal(earth.kelsiote_workers, 10);
   assert.equal(earth.robot_workers, 10);
@@ -278,12 +279,12 @@ test("computes per-planet stats correctly", () => {
   assert.equal(earth.free_augmentor_jobs, 2);
   assert.equal(earth.technician_jobs, 14);
   assert.equal(earth.free_technician_jobs, 6);
-  assert.equal(earth.farmer_jobs, 80);
-  assert.equal(earth.free_farmer_jobs, 20);
+  assert.equal(earth.farmer_jobs, 85);
+  assert.equal(earth.free_farmer_jobs, 23);
   // Free jobs are based on max workforce minus current workforce for each tier.
   assert.equal(earth.free_ruler_jobs, 3);
   assert.equal(earth.free_specialist_jobs, 35);
-  assert.equal(earth.free_worker_jobs, 26);
+  assert.equal(earth.free_worker_jobs, 29);
 });
 
 test("leaves missing building columns empty", () => {
